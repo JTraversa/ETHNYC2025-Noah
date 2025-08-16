@@ -32,19 +32,19 @@ describe("Noah", function () {
         noah = await Noah.deploy(await mockRouter.getAddress(), await usdc.getAddress());
     });
 
-    describe("Account Management", function () {
-        it("Should allow a user to set up a switch", async function () {
+    describe("Ark Management", function () {
+        it("Should allow a user to build an Ark", async function () {
             const tokens = [await token1.getAddress()];
-            await noah.connect(user).setupSwitch(beneficiary.address, DEADLINE_DURATION, tokens);
+            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
 
             const account = await noah.arks(user.address);
             expect(account.beneficiary).to.equal(beneficiary.address);
             expect(account.deadline).to.not.equal(0);
         });
 
-        it("Should allow a user to reset their switch", async function () {
+        it("Should allow a user to reset their Ark", async function () {
             const tokens = [await token1.getAddress()];
-            await noah.connect(user).setupSwitch(beneficiary.address, DEADLINE_DURATION, tokens);
+            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
             
             const oldAccount = await noah.arks(user.address);
             const oldDeadline = oldAccount.deadline;
@@ -53,7 +53,7 @@ describe("Noah", function () {
             await ethers.provider.send("evm_increaseTime", [60]);
             await ethers.provider.send("evm_mine");
 
-            await noah.connect(user).resetSwitch();
+            await noah.connect(user).resetArk();
             const newAccount = await noah.arks(user.address);
             expect(newAccount.deadline).to.be.above(oldDeadline);
         });
@@ -62,7 +62,7 @@ describe("Noah", function () {
     describe("Recovery and Selling", function () {
         beforeEach(async function () {
             const tokens = [await token1.getAddress()];
-            await noah.connect(user).setupSwitch(beneficiary.address, DEADLINE_DURATION, tokens);
+            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
             // User approves Noah to spend their Token1
             await token1.connect(user).approve(await noah.getAddress(), ethers.parseEther("100"));
         });
@@ -91,7 +91,7 @@ describe("Noah", function () {
             expect(account.deadline).to.equal(0);
         });
 
-        it("Should allow user to set up a new switch after the old one is drained", async function () {
+        it("Should allow user to build a new Ark after the old one is drained", async function () {
             // Fast forward time and recover
             await ethers.provider.send("evm_increaseTime", [DEADLINE_DURATION + 1]);
             await ethers.provider.send("evm_mine");
@@ -103,7 +103,7 @@ describe("Noah", function () {
             // Set up a new switch
             const newBeneficiary = other;
             const newTokens = [await token1.getAddress()];
-            await noah.connect(user).setupSwitch(newBeneficiary.address, DEADLINE_DURATION, newTokens);
+            await noah.connect(user).buildArk(newBeneficiary.address, DEADLINE_DURATION, newTokens);
 
             const newAccount = await noah.arks(user.address);
             expect(newAccount.beneficiary).to.equal(newBeneficiary.address);
@@ -114,7 +114,7 @@ describe("Noah", function () {
     describe("Fund Withdrawal", function () {
         beforeEach(async function () {
             const tokens = [await token1.getAddress()];
-            await noah.connect(user).setupSwitch(beneficiary.address, DEADLINE_DURATION, tokens);
+            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
             await token1.connect(user).approve(await noah.getAddress(), ethers.parseEther("100"));
 
             // Fast forward time and recover

@@ -22,8 +22,8 @@ contract Noah {
     mapping(address => Ark) public arks;
     mapping(address => uint256) public beneficiaryBalances; // beneficiary => USDC balance
 
-    event AccountSetup(address indexed user, address indexed beneficiary, uint256 deadline);
-    event SwitchReset(address indexed user, uint256 newDeadline);
+    event ArkBuilt(address indexed user, address indexed beneficiary, uint256 deadline);
+    event ArkReset(address indexed user, uint256 newDeadline);
     event RecoveryTriggered(address indexed user, address indexed beneficiary, uint256 usdcAmount);
     event FundsWithdrawn(address indexed beneficiary, uint256 amount);
 
@@ -33,12 +33,12 @@ contract Noah {
     }
 
     /**
-     * @notice Sets up the dead man's switch for the caller.
+     * @notice Builds an Ark for the caller.
      * @param _beneficiary The address to receive the funds.
-     * @param _deadlineDuration The time in seconds to wait before the switch can be triggered.
+     * @param _deadlineDuration The time in seconds to wait before the Ark can be triggered.
      * @param _tokens The list of token addresses to be managed.
      */
-    function setupSwitch(address _beneficiary, uint256 _deadlineDuration, address[] calldata _tokens) external {
+    function buildArk(address _beneficiary, uint256 _deadlineDuration, address[] calldata _tokens) external {
         require(arks[msg.sender].deadline == 0, "Account already initialized");
         require(_beneficiary != address(0), "Beneficiary cannot be the zero address");
         require(_deadlineDuration > 0, "Deadline duration must be greater than zero");
@@ -50,19 +50,19 @@ contract Noah {
             tokens: _tokens
         });
 
-        emit AccountSetup(msg.sender, _beneficiary, block.timestamp + _deadlineDuration);
+        emit ArkBuilt(msg.sender, _beneficiary, block.timestamp + _deadlineDuration);
     }
 
     /**
-     * @notice Resets the timer on the dead man's switch.
+     * @notice Resets the timer on an Ark.
      */
-    function resetSwitch() external {
+    function resetArk() external {
         require(arks[msg.sender].deadline != 0, "Account not initialized");
         
         uint256 newDeadline = block.timestamp + arks[msg.sender].deadlineDuration;
         arks[msg.sender].deadline = newDeadline;
 
-        emit SwitchReset(msg.sender, newDeadline);
+        emit ArkReset(msg.sender, newDeadline);
     }
 
     /**
