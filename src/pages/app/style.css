@@ -1,0 +1,160 @@
+.app {
+  min-height: 100vh;
+  padding-top: 120px;
+  padding-bottom: 60px;
+}
+
+.app_content {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.app_header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.app_header h1 {
+  color: var(--text-color);
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.app_header .lead {
+  color: var(--text-color-2);
+  font-size: 1.2rem;
+  margin-bottom: 0;
+}
+
+.app_features {
+  margin-bottom: 40px;
+}
+
+.feature_card .card {
+  border: 1px solid var(--border-color);
+  border-radius: 15px;
+  background: var(--bg-color);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.feature_card .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.feature_card .card-body {
+  padding: 30px;
+}
+
+.feature_card .card-title {
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin-bottom: 15px;
+}
+
+.feature_card .card-text {
+  color: var(--text-color-2);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.feature_card .btn {
+  background: var(--primary-color);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.feature_card .btn:hover {
+  background: var(--primary-color-2);
+  transform: translateY(-2px);
+}
+
+.app_status {
+  margin-top: 50px;
+}
+
+.status_card {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 15px;
+  padding: 30px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.status_card h4 {
+  color: var(--text-color);
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.status_indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.status_dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 10px;
+  background: #dc3545;
+  animation: pulse 2s infinite;
+}
+
+.status_dot.active {
+  background: #28a745;
+}
+
+.status_text {
+  color: var(--text-color-2);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .feature_card .card,
+[data-theme="dark"] .status_card {
+  background: var(--bg-color);
+  border-color: var(--border-color);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app {
+    padding-top: 100px;
+  }
+  
+  .app_header h1 {
+    font-size: 2.5rem;
+  }
+  
+  .feature_card .card-body {
+    padding: 20px;
+  }
+  
+  .status_card {
+    padding: 20px;
+  }
+}
+
