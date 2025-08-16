@@ -37,16 +37,16 @@ describe("Noah", function () {
             const tokens = [await token1.getAddress()];
             await noah.connect(user).setupSwitch(beneficiary.address, DEADLINE_DURATION, tokens);
 
-            const account = await noah.userAccounts(user.address);
+            const account = await noah.arks(user.address);
             expect(account.beneficiary).to.equal(beneficiary.address);
-            expect(account.initialized).to.be.true;
+            expect(account.deadline).to.not.equal(0);
         });
 
         it("Should allow a user to reset their switch", async function () {
             const tokens = [await token1.getAddress()];
             await noah.connect(user).setupSwitch(beneficiary.address, DEADLINE_DURATION, tokens);
             
-            const oldAccount = await noah.userAccounts(user.address);
+            const oldAccount = await noah.arks(user.address);
             const oldDeadline = oldAccount.deadline;
 
             // Increase time by a bit
@@ -54,7 +54,7 @@ describe("Noah", function () {
             await ethers.provider.send("evm_mine");
 
             await noah.connect(user).resetSwitch();
-            const newAccount = await noah.userAccounts(user.address);
+            const newAccount = await noah.arks(user.address);
             expect(newAccount.deadline).to.be.above(oldDeadline);
         });
     });
@@ -85,6 +85,29 @@ describe("Noah", function () {
             // Check user's token balance is now 0
             const userTokenBalance = await token1.balanceOf(user.address);
             expect(userTokenBalance).to.equal(0);
+
+            // Check that the user's account is reset
+            const account = await noah.arks(user.address);
+            expect(account.deadline).to.equal(0);
+        });
+
+        it("Should allow user to set up a new switch after the old one is drained", async function () {
+            // Fast forward time and recover
+            await ethers.provider.send("evm_increaseTime", [DEADLINE_DURATION + 1]);
+            await ethers.provider.send("evm_mine");
+            await noah.recoverAndSell(user.address);
+
+            // User gets more tokens
+            await token1.transfer(user.address, ethers.parseEther("50"));
+
+            // Set up a new switch
+            const newBeneficiary = other;
+            const newTokens = [await token1.getAddress()];
+            await noah.connect(user).setupSwitch(newBeneficiary.address, DEADLINE_DURATION, newTokens);
+
+            const newAccount = await noah.arks(user.address);
+            expect(newAccount.beneficiary).to.equal(newBeneficiary.address);
+            expect(newAccount.deadline).to.not.equal(0);
         });
     });
 

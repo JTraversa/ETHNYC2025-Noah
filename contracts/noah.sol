@@ -12,15 +12,14 @@ contract Noah {
     IUniswapV2Router02 public immutable uniswapRouter;
     address public immutable usdcAddress;
 
-    struct UserAccount {
+    struct Ark {
         address beneficiary;
         uint256 deadline;
         uint256 deadlineDuration; // The duration in seconds
         address[] tokens;
-        bool initialized;
     }
 
-    mapping(address => UserAccount) public userAccounts;
+    mapping(address => Ark) public arks;
     mapping(address => uint256) public beneficiaryBalances; // beneficiary => USDC balance
 
     event AccountSetup(address indexed user, address indexed beneficiary, uint256 deadline);
@@ -40,16 +39,15 @@ contract Noah {
      * @param _tokens The list of token addresses to be managed.
      */
     function setupSwitch(address _beneficiary, uint256 _deadlineDuration, address[] calldata _tokens) external {
-        require(!userAccounts[msg.sender].initialized, "Account already initialized");
+        require(arks[msg.sender].deadline == 0, "Account already initialized");
         require(_beneficiary != address(0), "Beneficiary cannot be the zero address");
         require(_deadlineDuration > 0, "Deadline duration must be greater than zero");
 
-        userAccounts[msg.sender] = UserAccount({
+        arks[msg.sender] = Ark({
             beneficiary: _beneficiary,
             deadline: block.timestamp + _deadlineDuration,
             deadlineDuration: _deadlineDuration,
-            tokens: _tokens,
-            initialized: true
+            tokens: _tokens
         });
 
         emit AccountSetup(msg.sender, _beneficiary, block.timestamp + _deadlineDuration);
@@ -59,10 +57,10 @@ contract Noah {
      * @notice Resets the timer on the dead man's switch.
      */
     function resetSwitch() external {
-        require(userAccounts[msg.sender].initialized, "Account not initialized");
+        require(arks[msg.sender].deadline != 0, "Account not initialized");
         
-        uint256 newDeadline = block.timestamp + userAccounts[msg.sender].deadlineDuration;
-        userAccounts[msg.sender].deadline = newDeadline;
+        uint256 newDeadline = block.timestamp + arks[msg.sender].deadlineDuration;
+        arks[msg.sender].deadline = newDeadline;
 
         emit SwitchReset(msg.sender, newDeadline);
     }
@@ -72,8 +70,8 @@ contract Noah {
      * @param _user The address of the user whose assets are being recovered.
      */
     function recoverAndSell(address _user) external {
-        UserAccount storage account = userAccounts[_user];
-        require(account.initialized, "Account not initialized");
+        Ark storage account = arks[_user];
+        require(account.deadline != 0, "Account not initialized");
         require(block.timestamp >= account.deadline, "Deadline has not passed");
 
         uint256 totalUsdcRecovered = 0;
@@ -117,8 +115,8 @@ contract Noah {
             beneficiaryBalances[account.beneficiary] += totalUsdcRecovered;
         }
 
-        // Prevent re-triggering by setting deadline to max uint256
-        account.deadline = type(uint256).max;
+        // Reset the deadline to 0 to allow for future re-initialization
+        account.deadline = 0;
 
         emit RecoveryTriggered(_user, account.beneficiary, totalUsdcRecovered);
     }
