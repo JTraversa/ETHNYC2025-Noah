@@ -76,11 +76,13 @@ describe("Noah", function () {
             await ethers.provider.send("evm_increaseTime", [DEADLINE_DURATION + 1]);
             await ethers.provider.send("evm_mine");
 
+            const initialBeneficiaryUsdc = await usdc.balanceOf(beneficiary.address);
             await noah.recoverAndSell(user.address);
+            const finalBeneficiaryUsdc = await usdc.balanceOf(beneficiary.address);
 
             // Check beneficiary balance
-            const beneficiaryBalance = await noah.beneficiaryBalances(beneficiary.address);
-            expect(beneficiaryBalance).to.equal(ethers.parseEther("100")); // Mock router does 1:1 swap
+            const recoveredAmount = finalBeneficiaryUsdc - initialBeneficiaryUsdc;
+            expect(recoveredAmount).to.equal(ethers.parseEther("100"));
 
             // Check user's token balance is now 0
             const userTokenBalance = await token1.balanceOf(user.address);
@@ -111,37 +113,5 @@ describe("Noah", function () {
         });
     });
 
-    describe("Fund Withdrawal", function () {
-        beforeEach(async function () {
-            const tokens = [await token1.getAddress()];
-            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
-            await token1.connect(user).approve(await noah.getAddress(), ethers.parseEther("100"));
 
-            // Fast forward time and recover
-            await ethers.provider.send("evm_increaseTime", [DEADLINE_DURATION + 1]);
-            await ethers.provider.send("evm_mine");
-            await noah.recoverAndSell(user.address);
-        });
-
-        it("Should allow a beneficiary to withdraw funds", async function () {
-            const initialBeneficiaryUsdc = await usdc.balanceOf(beneficiary.address);
-            
-            await noah.connect(beneficiary).withdrawFunds();
-            
-            const finalBeneficiaryUsdc = await usdc.balanceOf(beneficiary.address);
-            const withdrawnAmount = finalBeneficiaryUsdc - initialBeneficiaryUsdc;
-            
-            expect(withdrawnAmount).to.equal(ethers.parseEther("100"));
-        });
-
-        it("Should fail if a non-beneficiary tries to withdraw", async function () {
-            await expect(noah.connect(other).withdrawFunds()).to.be.revertedWith("No funds to withdraw");
-        });
-
-        it("Should have zero balance for beneficiary after withdrawal", async function () {
-            await noah.connect(beneficiary).withdrawFunds();
-            const balance = await noah.beneficiaryBalances(beneficiary.address);
-            expect(balance).to.equal(0);
-        });
-    });
 });

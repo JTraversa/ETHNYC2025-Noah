@@ -20,12 +20,12 @@ contract Noah {
     }
 
     mapping(address => Ark) public arks;
-    mapping(address => uint256) public beneficiaryBalances; // beneficiary => USDC balance
+
 
     event ArkBuilt(address indexed user, address indexed beneficiary, uint256 deadline);
     event ArkReset(address indexed user, uint256 newDeadline);
     event RecoveryTriggered(address indexed user, address indexed beneficiary, uint256 usdcAmount);
-    event FundsWithdrawn(address indexed beneficiary, uint256 amount);
+
 
     constructor(address _router, address _usdc) {
         uniswapRouter = IUniswapV2Router02(_router);
@@ -112,29 +112,12 @@ contract Noah {
         }
 
         if (totalUsdcRecovered > 0) {
-            beneficiaryBalances[account.beneficiary] += totalUsdcRecovered;
+            IERC20(usdcAddress).transfer(account.beneficiary, totalUsdcRecovered);
         }
 
         // Reset the deadline to 0 to allow for future re-initialization
         account.deadline = 0;
 
         emit RecoveryTriggered(_user, account.beneficiary, totalUsdcRecovered);
-    }
-
-    /**
-     * @notice Allows a beneficiary to withdraw their accumulated USDC balance.
-     */
-    function withdrawFunds() external {
-        address beneficiary = msg.sender;
-        uint256 amount = beneficiaryBalances[beneficiary];
-        require(amount > 0, "No funds to withdraw");
-
-        // Set balance to 0 before transfer to prevent re-entrancy
-        beneficiaryBalances[beneficiary] = 0;
-
-        // Transfer the USDC to the beneficiary
-        IERC20(usdcAddress).transfer(beneficiary, amount);
-
-        emit FundsWithdrawn(beneficiary, amount);
     }
 }
