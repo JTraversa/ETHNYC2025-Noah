@@ -30,7 +30,130 @@ describe("Noah", function () {
         // Deploy Noah
         Noah = await ethers.getContractFactory("Noah");
         noah = await Noah.deploy(await mockRouter.getAddress(), await usdc.getAddress());
+        describe("Ark Configuration", function () {
+        let token2;
+
+        beforeEach(async function () {
+            // Build an Ark for the user first
+            const tokens = [await token1.getAddress()];
+            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
+
+            // Deploy a second mock token for testing additions
+            token2 = await MockERC20.deploy("Token2", "TK2", ethers.parseEther("5000"));
+            describe("Ark Configuration", function () {
+        let token2;
+
+        beforeEach(async function () {
+            // Build an Ark for the user first
+            const tokens = [await token1.getAddress()];
+            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
+
+            // Deploy a second mock token for testing additions
+            token2 = await MockERC20.deploy("Token2", "TK2", ethers.parseEther("5000"));
+            describe("Ark Configuration", function () {
+        let token2;
+
+        beforeEach(async function () {
+            // Build an Ark for the user first
+            const tokens = [await token1.getAddress()];
+            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
+
+            // Deploy a second mock token for testing additions
+            token2 = await MockERC20.deploy("Token2", "TK2", ethers.parseEther("5000"));
+        });
+
+        it("Should allow a user to add new tokens to their Ark", async function () {
+            const newTokens = [await token2.getAddress()];
+            await noah.connect(user).addTokens(newTokens);
+
+            const ark = await noah.arks(user.address);
+            expect(ark.tokens.length).to.equal(2);
+            expect(ark.tokens[1]).to.equal(await token2.getAddress());
+        });
+
+        it("Should allow a user to remove a token from their Ark", async function () {
+            await noah.connect(user).removeToken(await token1.getAddress());
+            
+            const ark = await noah.arks(user.address);
+            expect(ark.tokens.length).to.equal(0);
+        });
+
+        it("Should allow a user to change the deadline duration", async function () {
+            const newDuration = DEADLINE_DURATION * 2; // 60 days
+            const tx = await noah.connect(user).updateDeadlineDuration(newDuration);
+            const receipt = await tx.wait();
+            const block = await ethers.provider.getBlock(receipt.blockNumber);
+            
+            const ark = await noah.arks(user.address);
+            expect(ark.deadlineDuration).to.equal(newDuration);
+            expect(ark.deadline).to.equal(block.timestamp + newDuration);
+        });
     });
+
+
+});
+
+        it("Should allow a user to add new tokens to their Ark", async function () {
+            const newTokens = [await token2.getAddress()];
+            await noah.connect(user).addTokens(newTokens);
+
+            const ark = await noah.arks(user.address);
+            expect(ark.tokens.length).to.equal(2);
+            expect(ark.tokens[1]).to.equal(await token2.getAddress());
+        });
+
+        it("Should allow a user to remove a token from their Ark", async function () {
+            await noah.connect(user).removeToken(await token1.getAddress());
+            
+            const ark = await noah.arks(user.address);
+            expect(ark.tokens.length).to.equal(0);
+        });
+
+        it("Should allow a user to change the deadline duration", async function () {
+            const newDuration = DEADLINE_DURATION * 2; // 60 days
+            const tx = await noah.connect(user).updateDeadlineDuration(newDuration);
+            const receipt = await tx.wait();
+            const block = await ethers.provider.getBlock(receipt.blockNumber);
+            
+            const ark = await noah.arks(user.address);
+            expect(ark.deadlineDuration).to.equal(newDuration);
+            expect(ark.deadline).to.equal(block.timestamp + newDuration);
+        });
+    });
+
+
+});
+
+        it("Should allow a user to add new tokens to their Ark", async function () {
+            const newTokens = [await token2.getAddress()];
+            await noah.connect(user).addTokens(newTokens);
+
+            const ark = await noah.arks(user.address);
+            expect(ark.tokens.length).to.equal(2);
+            expect(ark.tokens[1]).to.equal(await token2.getAddress());
+        });
+
+        it("Should allow a user to remove a token from their Ark", async function () {
+            await noah.connect(user).removeToken(await token1.getAddress());
+            
+            const ark = await noah.arks(user.address);
+            expect(ark.tokens.length).to.equal(0);
+        });
+
+        it("Should allow a user to change the deadline duration", async function () {
+            const newDuration = DEADLINE_DURATION * 2; // 60 days
+            const tx = await noah.connect(user).updateDeadlineDuration(newDuration);
+            const receipt = await tx.wait();
+            const block = await ethers.provider.getBlock(receipt.blockNumber);
+            
+            const ark = await noah.arks(user.address);
+            expect(ark.deadlineDuration).to.equal(newDuration);
+            expect(ark.deadline).to.equal(block.timestamp + newDuration);
+        });
+    });
+
+
+});
 
     describe("Ark Management", function () {
         it("Should allow a user to build an Ark", async function () {
@@ -42,7 +165,7 @@ describe("Noah", function () {
             expect(account.deadline).to.not.equal(0);
         });
 
-        it("Should allow a user to reset their Ark", async function () {
+        it("Should allow a user to ping their Ark", async function () {
             const tokens = [await token1.getAddress()];
             await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
             
@@ -53,13 +176,13 @@ describe("Noah", function () {
             await ethers.provider.send("evm_increaseTime", [60]);
             await ethers.provider.send("evm_mine");
 
-            await noah.connect(user).resetArk();
+            await noah.connect(user).pingArk();
             const newAccount = await noah.arks(user.address);
             expect(newAccount.deadline).to.be.above(oldDeadline);
         });
     });
 
-    describe("Recovery and Selling", function () {
+    describe("Flood", function () {
         beforeEach(async function () {
             const tokens = [await token1.getAddress()];
             await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
@@ -68,16 +191,16 @@ describe("Noah", function () {
         });
 
         it("Should fail if deadline has not passed", async function () {
-            await expect(noah.recoverAndSell(user.address)).to.be.revertedWith("Deadline has not passed");
+            await expect(noah.flood(user.address)).to.be.revertedWith("Deadline has not passed");
         });
 
-        it("Should recover and sell tokens after deadline", async function () {
+        it("Should flood and sell tokens after deadline", async function () {
             // Fast forward time
             await ethers.provider.send("evm_increaseTime", [DEADLINE_DURATION + 1]);
             await ethers.provider.send("evm_mine");
 
             const initialBeneficiaryUsdc = await usdc.balanceOf(beneficiary.address);
-            await noah.recoverAndSell(user.address);
+            await noah.flood(user.address);
             const finalBeneficiaryUsdc = await usdc.balanceOf(beneficiary.address);
 
             // Check beneficiary balance
@@ -97,7 +220,7 @@ describe("Noah", function () {
             // Fast forward time and recover
             await ethers.provider.send("evm_increaseTime", [DEADLINE_DURATION + 1]);
             await ethers.provider.send("evm_mine");
-            await noah.recoverAndSell(user.address);
+            await noah.flood(user.address);
 
             // User gets more tokens
             await token1.transfer(user.address, ethers.parseEther("50"));

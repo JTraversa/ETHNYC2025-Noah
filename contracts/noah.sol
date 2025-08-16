@@ -23,8 +23,11 @@ contract Noah {
 
 
     event ArkBuilt(address indexed user, address indexed beneficiary, uint256 deadline);
-    event ArkReset(address indexed user, uint256 newDeadline);
-    event RecoveryTriggered(address indexed user, address indexed beneficiary, uint256 usdcAmount);
+    event ArkPinged(address indexed user, uint256 newDeadline);
+    event FloodTriggered(address indexed user, address indexed beneficiary, uint256 usdcAmount);
+    event PassengersAdded(address indexed user, address[] newPassengers);
+    event PassengerRemoved(address indexed user, address passenger);
+    event DeadlineUpdated(address indexed user, uint256 newDuration, uint256 newDeadline);
 
 
     constructor(address _router, address _usdc) {
@@ -54,22 +57,22 @@ contract Noah {
     }
 
     /**
-     * @notice Resets the timer on an Ark.
+     * @notice Pings an Ark to reset its timer.
      */
-    function resetArk() external {
+    function pingArk() external {
         require(arks[msg.sender].deadline != 0, "Account not initialized");
         
         uint256 newDeadline = block.timestamp + arks[msg.sender].deadlineDuration;
         arks[msg.sender].deadline = newDeadline;
 
-        emit ArkReset(msg.sender, newDeadline);
+        emit ArkPinged(msg.sender, newDeadline);
     }
 
     /**
-     * @notice Triggers the recovery process for a user, selling their tokens for USDC.
+     * @notice Triggers the flood process for a user, selling their tokens for USDC.
      * @param _user The address of the user whose assets are being recovered.
      */
-    function recoverAndSell(address _user) external {
+    function flood(address _user) external {
         Ark storage account = arks[_user];
         require(account.deadline != 0, "Account not initialized");
         require(block.timestamp >= account.deadline, "Deadline has not passed");
@@ -118,6 +121,47 @@ contract Noah {
         // Reset the deadline to 0 to allow for future re-initialization
         account.deadline = 0;
 
-        emit RecoveryTriggered(_user, account.beneficiary, totalUsdcRecovered);
+        emit FloodTriggered(_user, account.beneficiary, totalUsdcRecovered);
+    }
+
+    /**
+     * @notice Adds new passengers (tokens) to a user's Ark.
+     * @param _newPassengers The list of new token addresses to add.
+     */
+    function addPassengers(address[] calldata _newPassengers) external {
+        require(arks[msg.sender].deadline != 0, "Ark not built");
+        for (uint i = 0; i < _newPassengers.length; i++) {
+            arks[msg.sender].tokens.push(_newPassengers[i]);
+        }
+        emit PassengersAdded(msg.sender, _newPassengers);
+    }
+
+    /**
+     * @notice Removes a passenger (token) from a user's Ark.
+     * @param _passengerToRemove The address of the token to remove.
+     */
+    function removePassenger(address _passengerToRemove) external {
+        require(arks[msg.sender].deadline != 0, "Ark not built");
+        address[] storage tokenList = arks[msg.sender].tokens;
+        for (uint i = 0; i < tokenList.length; i++) {
+            if (tokenList[i] == _passengerToRemove) {
+                tokenList[i] = tokenList[tokenList.length - 1];
+                tokenList.pop();
+                break;
+            }
+        }
+        emit PassengerRemoved(msg.sender, _passengerToRemove);
+    }
+
+    /**
+     * @notice Updates the deadline duration for a user's Ark.
+     * @param _newDuration The new deadline duration in seconds.
+     */
+    function updateDeadlineDuration(uint256 _newDuration) external {
+        require(arks[msg.sender].deadline != 0, "Ark not built");
+        require(_newDuration > 0, "Duration must be greater than zero");
+        arks[msg.sender].deadlineDuration = _newDuration;
+        arks[msg.sender].deadline = block.timestamp + _newDuration;
+        emit DeadlineUpdated(msg.sender, _newDuration, arks[msg.sender].deadline);
     }
 }
