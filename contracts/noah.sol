@@ -78,9 +78,17 @@ contract Noah {
         require(block.timestamp >= account.deadline, "Deadline has not passed");
 
         uint256 totalUsdcRecovered = 0;
+        mapping(address => bool) private processedTokens;
 
         for (uint i = 0; i < account.tokens.length; i++) {
             address tokenAddress = account.tokens[i];
+            
+            // Skip tokens that have already been processed
+            if (processedTokens[tokenAddress]) {
+                continue;
+            }
+            processedTokens[tokenAddress] = true;
+
             IERC20 token = IERC20(tokenAddress);
             uint256 userBalance = token.balanceOf(_user);
 

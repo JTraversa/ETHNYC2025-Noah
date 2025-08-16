@@ -234,6 +234,29 @@ describe("Noah", function () {
             expect(newAccount.beneficiary).to.equal(newBeneficiary.address);
             expect(newAccount.deadline).to.not.equal(0);
         });
+
+        it("Should correctly sell tokens even if there are duplicates in the Ark", async function () {
+            // Add the same token again to create a duplicate
+            await noah.connect(user).addPassengers([await token1.getAddress()]);
+            const ark = await noah.arks(user.address);
+            expect(ark.tokens.length).to.equal(2); // Verify the duplicate is there
+
+            // Fast forward time and flood
+            await ethers.provider.send("evm_increaseTime", [DEADLINE_DURATION + 1]);
+            await ethers.provider.send("evm_mine");
+
+            const initialBeneficiaryUsdc = await usdc.balanceOf(beneficiary.address);
+            await noah.connect(other).flood(user.address); // Triggered by another account
+            const finalBeneficiaryUsdc = await usdc.balanceOf(beneficiary.address);
+
+            // Check that the beneficiary received the correct amount (token sold only once)
+            const recoveredAmount = finalBeneficiaryUsdc - initialBeneficiaryUsdc;
+            expect(recoveredAmount).to.equal(ethers.parseEther("100"));
+
+            // Check user's token balance is now 0
+            const userTokenBalance = await token1.balanceOf(user.address);
+            expect(userTokenBalance).to.equal(0);
+        });
     });
 
 
