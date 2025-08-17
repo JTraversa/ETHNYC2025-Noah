@@ -95,16 +95,53 @@ export const App = () => {
     setSelectedChainId(targetId);
     try {
       if (targetId === 1 || targetId === 42161) {
+        // First try wagmi's switch
         await switchChain(wagmiConfig, { chainId: targetId });
       } else {
         // eslint-disable-next-line no-console
         console.warn('[ChainSelect] Unsupported chain in app config; only Ethereum and Arbitrum switching are enabled for now');
         setSelectedChainId(chainId || 1);
+        return;
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('[ChainSelect] switch failed', err);
-      setSelectedChainId(chainId || 1);
+      console.error('[ChainSelect] wagmi switch failed, falling back to provider', err);
+      const provider = (typeof window !== 'undefined') && (window.ethereum || window.coinbaseWalletProvider);
+      if (!provider) {
+        // eslint-disable-next-line no-console
+        console.warn('[ChainSelect] No injected provider found');
+        setSelectedChainId(chainId || 1);
+        return;
+      }
+      const hexMap = { 1: '0x1', 42161: '0xa4b1' };
+      const hexId = hexMap[targetId];
+      try {
+        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexId }] });
+      } catch (switchErr) {
+        // 4902 = chain not added
+        if (switchErr?.code === 4902 && targetId === 42161) {
+          try {
+            await provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0xa4b1',
+                chainName: 'Arbitrum One',
+                rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+                nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                blockExplorerUrls: ['https://arbiscan.io/'],
+              }],
+            });
+          } catch (addErr) {
+            // eslint-disable-next-line no-console
+            console.error('[ChainSelect] add chain failed', addErr);
+            setSelectedChainId(chainId || 1);
+          }
+        } else {
+          // eslint-disable-next-line no-console
+          console.error('[ChainSelect] provider switch failed', switchErr);
+          setSelectedChainId(chainId || 1);
+        }
+      }
     }
   };
 
