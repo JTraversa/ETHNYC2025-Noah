@@ -333,7 +333,7 @@ export const App = () => {
             <option value="1">Ethereum</option>
             <option value="42161">Arbitrum</option>
             <option value="5000">Katana (placeholder)</option>
-            <option value="88888">Chiliz (placeholder)</option>
+            <option value="88888">Chiliz</option>
             <option value="295">Hedera (placeholder)</option>
             <option value="4893">Zircuit (placeholder)</option>
           </select>
