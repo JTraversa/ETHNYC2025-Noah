@@ -1,4 +1,4 @@
-import { getPublicClient, writeContract } from 'wagmi/actions';
+import { readContract, writeContract } from 'wagmi/actions';
 import { parseAbi } from 'viem';
 import { wagmiConfig } from './wagmi';
 
@@ -31,8 +31,7 @@ const NFT_ABI = parseAbi([
 ]);
 
 export async function getArk(noahAddress, user) {
-  const client = getPublicClient();
-  return client.readContract({
+  return readContract(wagmiConfig, {
     address: noahAddress,
     abi: ABI,
     functionName: 'getArk',
