@@ -1,28 +1,13 @@
-# Noah V4 - Uniswap V4 Integration
+# Noah - A revolutionary hardware redundancy, fund recovery, and inheritance solution that guarantees your crypto assets will never be lost.
 
-This project demonstrates the migration from Uniswap V2 to Uniswap V4 for the Noah contract, which provides a time-based asset recovery mechanism.
 
-## Overview
+Noah's dead man switch technology provides a secure, automated way to ensure your cryptocurrency is safely inherited. By combining blockchain security with real-world verification systems, we create a foolproof inheritance mechanism.
 
-Noah V4 allows users to:
-- Build "Arks" with a deadline and beneficiary
-- Add/remove tokens to their Ark
-- Ping their Ark to reset the deadline
-- Automatically sell all tokens for USDC when the deadline passes (flood)
+Our platform monitors your activity and, when combined with real-world verification triggers, can automatically transfer your assets to designated beneficiaries when you're no longer able to manage them yourself.
 
-## Key Changes from V2 to V4
+Deployed on Flow however it appears there are errors with the current testnet block explorer as the account is running into read errors -- https://testnet.flowscan.io/evm/account/0xD42D01CfE3EEb70B4d27a9De27cbEacB4b3CAb56
 
-1. **Uniswap V4 Integration**: Replaced Uniswap V2 router with V4 PoolManager
-2. **Hook System**: Added a custom hook contract for V4 compliance
-3. **Improved Swap Logic**: Better handling of swap callbacks and balance tracking
-4. **Enhanced Security**: Added SafeERC20 for safer token operations
-
-## Architecture
-
-- **NoahV4**: Main contract implementing the Ark functionality
-- **NoahV4Hook**: Uniswap V4 hook contract for swap compliance
-- **MockPoolManager**: Test mock for the V4 PoolManager
-- **MockERC20**: Test ERC20 tokens for development
+> "It's not you, it's us 😔 Error while fetching data on route:Evm/account/0xD42D01CfE3EEb70B4d27a9De27cbEacB4b3CAb56 Cannot read properties of null (reading 'hash')"
 
 ## Setup Instructions
 
