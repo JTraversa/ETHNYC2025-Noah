@@ -147,6 +147,21 @@
   }
 }
 
+/* Bottom-right environment info */
+.env-info {
+  position: fixed;
+  right: 12px;
+  bottom: 10px;
+  color: rgba(0,0,0,0.45);
+  font-size: 12px;
+  text-align: right;
+  pointer-events: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .env-info { color: rgba(255,255,255,0.45); }
+}
+
 /* Dark mode adjustments */
 [data-theme="dark"] .feature_card .card,
 [data-theme="dark"] .status_card {

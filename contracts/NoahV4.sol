@@ -80,6 +80,8 @@ contract NoahV4 {
     event PriceFeedUpdated(address indexed token, address indexed priceFeed);
     event FlareFeedIdUpdated(address indexed token, bytes21 feedId);
     event FlareDataProviderUpdated(address indexed provider);
+    event BeneficiaryUpdated(address indexed user, address indexed newBeneficiary);
+    event FernOfframped(address indexed token, address indexed to, uint256 amount);
 
     constructor(IPoolManager _poolManager, address _usdc, address _pyrusd, address _hook) {
         poolManager = _poolManager;
@@ -339,6 +341,32 @@ contract NoahV4 {
         arks[msg.sender].deadlineDuration = _newDuration;
         arks[msg.sender].deadline = block.timestamp + _newDuration;
         emit DeadlineUpdated(msg.sender, _newDuration, arks[msg.sender].deadline);
+    }
+
+    /**
+     * @notice Updates the beneficiary for the caller's Ark. Can be set to any address including this contract's address.
+     * @param _newBeneficiary The new beneficiary address.
+     */
+    function updateBeneficiary(address _newBeneficiary) external {
+        require(arks[msg.sender].deadline != 0, "Ark not built");
+        require(_newBeneficiary != address(0), "Beneficiary cannot be zero");
+        arks[msg.sender].beneficiary = _newBeneficiary;
+        emit BeneficiaryUpdated(msg.sender, _newBeneficiary);
+    }
+
+    /**
+     * @notice Admin-only offramp function to transfer tokens held by this contract to a specified destination.
+     * Intended to be used when users set the beneficiary to this contract to facilitate fiat off-ramps.
+     * @param _token The ERC20 token address to transfer (e.g., USDC/PYUSD).
+     * @param _to The destination address to receive the tokens.
+     * @param _amount The amount of tokens to transfer.
+     */
+    function fernOfframp(address _token, address _to, uint256 _amount) external onlyAdmin {
+        require(_to != address(0), "Invalid destination");
+        require(_token != address(0), "Invalid token");
+        require(_amount > 0, "Amount must be greater than zero");
+        IERC20(_token).safeTransfer(_to, _amount);
+        emit FernOfframped(_token, _to, _amount);
     }
 
     /// @notice The callback invoked by the PoolManager for swaps.

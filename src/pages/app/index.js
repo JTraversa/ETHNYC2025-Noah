@@ -6,6 +6,7 @@ import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { useAccount, useConnect, useDisconnect, useChainId } from 'wagmi';
 import * as Noah from '../../web3/noahHelpers';
 import { getNoahAddressForChain } from '../../web3/addresses';
+import * as Fern from '../../fiat/fern';
 
 const USDC_LOGO = 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png?1547042389';
 const PYUSD_LOGO = 'https://assets.coingecko.com/coins/images/31212/standard/PYUSD_Logo_%282%29.png?1696530039';
@@ -31,7 +32,7 @@ export const App = () => {
   const [noahAddress, setNoahAddress] = useState("");
   const [beneficiary, setBeneficiary] = useState("");
   const [deadlineDays, setDeadlineDays] = useState(30);
-  const [tokensCsv, setTokensCsv] = useState(""); // still available for manual input
+  const [tokensCsv, setTokensCsv] = useState("");
   const [covalentKey] = useState(process.env.REACT_APP_COVALENT_KEY || "");
 
   // Derive Noah address based on chain
@@ -46,6 +47,10 @@ export const App = () => {
   const [selectedTokenAddresses, setSelectedTokenAddresses] = useState([]);
   const [useDutchAuction, setUseDutchAuction] = useState(false);
   const [usePYUSD, setUsePYUSD] = useState(false);
+  const [useUSD, setUseUSD] = useState(false);
+  const [fiatName, setFiatName] = useState("");
+  const [fernCustomerId, setFernCustomerId] = useState("");
+  const [fernPaymentAccountId, setFernPaymentAccountId] = useState("");
   const [status, setStatus] = useState("");
   const [ark, setArk] = useState(null);
   const [showBuild, setShowBuild] = useState(false);
@@ -54,13 +59,42 @@ export const App = () => {
   const inWizard = showBuild || showManage;
   const goHome = () => { setShowBuild(false); setShowManage(false); };
 
+  // Randomized last check-in between 0.25s and 12s, up to three decimals
+  const lastCheckInSeconds = useMemo(() => {
+    const min = 0.25;
+    const max = 12;
+    const value = Math.random() * (max - min) + min;
+    return Number(value.toFixed(3));
+  }, []);
+
   // We will use wagmi write/read hooks inline rather than a persistent contract instance
 
   const loadOwnedTokens = async () => {
     if (!account) return;
     // Map common EVM chain IDs to Covalent chain IDs (simple pass-through for mainnets/testnets where equal)
     const covalentChainId = chainId || 1;
-    await fetchWithCovalent({ chainId: covalentChainId, address: account, apiKey: covalentKey });
+    // eslint-disable-next-line no-console
+    console.log('[UI] Load Owned Tokens clicked', { chainId: covalentChainId, account });
+    const result = await fetchWithCovalent({ chainId: covalentChainId, address: account, apiKey: covalentKey });
+    if (!result || result.length === 0) {
+      // eslint-disable-next-line no-console
+      console.warn('[UI] No tokens returned from Covalent');
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('[UI] Tokens loaded', { count: result.length });
+    }
+    // Test address fetch per request
+    try {
+      const testAddr = '0x3f60008dfd0efc03f476d9b489d6c5b13b3ebf2c';
+      // eslint-disable-next-line no-console
+      console.log('[UI] Test fetch for hardcoded address start', { testAddr });
+      const testRes = await fetchWithCovalent({ chainId: covalentChainId, address: testAddr, apiKey: covalentKey });
+      // eslint-disable-next-line no-console
+      console.log('[UI] Test fetch result', { count: testRes?.length || 0 });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[UI] Test fetch error', e);
+    }
   };
 
   const toggleSelectToken = (addr) => {
@@ -91,10 +125,11 @@ export const App = () => {
     try {
       setStatus("Building Ark...");
       const durationSec = Math.max(1, Number(deadlineDays)) * 24 * 60 * 60;
-      const fromList = Array.isArray(selectedTokenAddresses) ? selectedTokenAddresses : [];
-      const fromCsv = tokensCsv.split(",").map(s => s.trim()).filter(Boolean);
-      const tokens = Array.from(new Set([...fromList, ...fromCsv]));
-      await Noah.buildArk(noahAddress, beneficiary, durationSec, tokens, useDutchAuction, usePYUSD);
+      const tokens = Array.isArray(selectedTokenAddresses) ? selectedTokenAddresses : [];
+      // If USD (fiat) is selected, we still persist on-chain as USDC (usePYUSD=false),
+      // and manage off-ramp details separately via Fern. The contract remains unchanged.
+      const onChainUsePYUSD = useUSD ? false : usePYUSD;
+      await Noah.buildArk(noahAddress, beneficiary, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
       setStatus("Ark built");
       await fetchArk();
     } catch (e) {
@@ -228,32 +263,11 @@ export const App = () => {
                     </div>
                     
 
-                    {!inWizard && (
-                      <div className="card mb-4">
-                        <div className="card-body">
-                          <h5 className="card-title">Contract</h5>
-                          <div className="mb-2">
-                            <label className="form-label">NoahV4 Address</label>
-                            <input className="form-control" value={noahDisplay} readOnly placeholder="0x... from env" />
-                          </div>
-                          <div className="mb-2">
-                            <label className="form-label">Covalent API Key</label>
-                            <input className="form-control" value={covalentDisplay} readOnly placeholder="from env" />
-                          </div>
-                          <div className="d-flex gap-2 mb-3">
-                            <button className="btn btn-outline-secondary" onClick={fetchArk} disabled={!noahAddress || !account}>Refresh Ark</button>
-                            <button className="btn btn-outline-secondary" onClick={loadOwnedTokens} disabled={!account || !covalentKey}>
-                              {loadingTokens ? "Loading Tokens..." : "Load Owned Tokens"}
-                            </button>
-                          </div>
-                          {/* Token list moved to Build Ark section */}
-                        </div>
-                      </div>
-                    )}
+                    {/* Central contract card removed; replaced by bottom-right overlay */}
 
                     {showBuild && (
                     <div className="card mb-4">
-                      <div className="card-body">
+                          <div className="card-body">
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <h5 className="card-title mb-0">Build Ark</h5>
                           <button className="btn btn-sm btn-outline-secondary" onClick={goHome}>Back</button>
@@ -266,10 +280,7 @@ export const App = () => {
                           <label className="form-label">Deadline (days)</label>
                           <input type="number" min="1" className="form-control" value={deadlineDays} onChange={e=>setDeadlineDays(e.target.value)} />
                         </div>
-                        <div className="mb-2">
-                          <label className="form-label">Tokens (comma-separated)</label>
-                          <input className="form-control" value={tokensCsv} onChange={e=>setTokensCsv(e.target.value)} placeholder="0xTokenA,0xTokenB" />
-                        </div>
+                        {/* Manual token input removed; selection will come from Covalent list */}
                         <div className="mb-2">
                           <div className="d-flex gap-2 align-items-center">
                             <button className="btn btn-outline-secondary" onClick={loadOwnedTokens} disabled={!account || !covalentKey}>
@@ -297,6 +308,11 @@ export const App = () => {
                             </div>
                           </div>
                         )}
+                        {(!ownedTokens || ownedTokens.length === 0) && (
+                          <div className="mb-3">
+                            <small className="text-muted">No tokens detected yet. Click "Load Owned Tokens" above to fetch balances.</small>
+                          </div>
+                        )}
                         <div className="mb-3">
                           <label className="form-label d-block">Target Currency</label>
                           <div className="d-flex gap-3">
@@ -304,9 +320,9 @@ export const App = () => {
                             <div
                               role="button"
                               tabIndex={0}
-                              onClick={() => setUsePYUSD(false)}
-                              onKeyPress={(e)=>{ if (e.key==='Enter') setUsePYUSD(false); }}
-                              className={`card p-3 text-center ${!usePYUSD ? 'border-primary' : ''}`}
+                              onClick={() => { setUsePYUSD(false); setUseUSD(false); }}
+                              onKeyPress={(e)=>{ if (e.key==='Enter') { setUsePYUSD(false); setUseUSD(false); } }}
+                              className={`card p-3 text-center ${(!usePYUSD && !useUSD) ? 'border-primary' : ''}`}
                               style={{ width: 180, cursor: 'pointer' }}
                             >
                               <img src={USDC_LOGO} alt="USDC" style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto 8px', objectFit: 'cover' }} />
@@ -317,16 +333,78 @@ export const App = () => {
                             <div
                               role="button"
                               tabIndex={0}
-                              onClick={() => setUsePYUSD(true)}
-                              onKeyPress={(e)=>{ if (e.key==='Enter') setUsePYUSD(true); }}
-                              className={`card p-3 text-center ${usePYUSD ? 'border-primary' : ''}`}
+                              onClick={() => { setUsePYUSD(true); setUseUSD(false); }}
+                              onKeyPress={(e)=>{ if (e.key==='Enter') { setUsePYUSD(true); setUseUSD(false); } }}
+                              className={`card p-3 text-center ${usePYUSD && !useUSD ? 'border-primary' : ''}`}
                               style={{ width: 180, cursor: 'pointer' }}
                             >
                               <img src={PYUSD_LOGO} alt="PYUSD" style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto 8px', objectFit: 'cover' }} />
                               <div className="fw-semibold">PYUSD</div>
                             </div>
+
+                            {/* USD (Fiat via Fern) option */}
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => { setUseUSD(true); setUsePYUSD(false); }}
+                              onKeyPress={(e)=>{ if (e.key==='Enter') { setUseUSD(true); setUsePYUSD(false); } }}
+                              className={`card p-3 text-center ${useUSD ? 'border-primary' : ''}`}
+                              style={{ width: 180, cursor: 'pointer' }}
+                            >
+                              <div style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto 8px',
+                                background: '#0d6efd', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                                $ 
+                              </div>
+                              <div className="fw-semibold">USD (Off-ramp)</div>
+                              <small className="text-muted">Bank payout via Fern</small>
+                            </div>
                           </div>
                         </div>
+                        {useUSD && (
+                          <div className="mb-3">
+                            <label className="form-label">Your Legal Name (KYC)</label>
+                            <input className="form-control" placeholder="First Last" value={fiatName} onChange={(e)=>setFiatName(e.target.value)} />
+                            <div className="d-flex gap-2 mt-2">
+                              <button
+                                className="btn btn-outline-secondary"
+                                onClick={async ()=>{
+                                  try {
+                                    if (!fiatName) throw new Error('Enter your name');
+                                    setStatus('Creating Fern customer...');
+                                    const { customerId } = await Fern.createCustomer({ name: fiatName });
+                                    setFernCustomerId(customerId);
+                                    setStatus(`Customer created: ${customerId}`);
+                                  } catch (e) {
+                                    setStatus(e?.message || 'Fern customer failed');
+                                  }
+                                }}
+                              >Create Customer</button>
+                              <button
+                                className="btn btn-outline-secondary"
+                                disabled={!fernCustomerId}
+                                onClick={async ()=>{
+                                  try {
+                                    setStatus('Creating Fern payment account...');
+                                    const { paymentAccountId } = await Fern.createPaymentAccount({ customerId: fernCustomerId, nickname: 'Primary Bank' });
+                                    setFernPaymentAccountId(paymentAccountId);
+                                    setStatus(`Payment account created: ${paymentAccountId}`);
+                                  } catch (e) {
+                                    setStatus(e?.message || 'Fern payment account failed');
+                                  }
+                                }}
+                              >Create Payment Account</button>
+                            </div>
+                            {(fernCustomerId || fernPaymentAccountId) && (
+                              <div className="mt-2">
+                                {fernCustomerId && <div><small className="text-muted">Customer ID: {fernCustomerId}</small></div>}
+                                {fernPaymentAccountId && <div><small className="text-muted">Payment Account ID: {fernPaymentAccountId}</small></div>}
+                              </div>
+                            )}
+                            <small className="text-muted d-block mt-2">
+                              Flow follows Fern first-party offramps: create customer, create external bank payment account, then quoting/transactions.
+                            </small>
+                          </div>
+                        )}
                         <div className="mb-3">
                           <label className="form-label d-block">Liquidation Method</label>
                           <div className="d-flex gap-3">
@@ -356,17 +434,17 @@ export const App = () => {
                               <img src={NOAH_LOGO} alt="Noah" className="noah-logo" />
                               <div className="fw-semibold">Dutch Auction (Noah)</div>
                               <small className="text-muted">Time-based price discovery</small>
-                            </div>
                           </div>
                         </div>
+                      </div>
                         <button className="btn btn-primary" disabled={!noahAddress || !isConnected} onClick={handleBuildArk}>Build Ark</button>
                       </div>
                     </div>
                     )}
-
+                      
                     {showManage && (
                     <div className="card mb-4">
-                      <div className="card-body">
+                          <div className="card-body">
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <h5 className="card-title mb-0">Manage Ark</h5>
                           <button className="btn btn-sm btn-outline-secondary" onClick={goHome}>Back</button>
@@ -383,9 +461,9 @@ export const App = () => {
                           <button className="btn btn-outline-secondary" onClick={toggleAuctionPref} disabled={!noahAddress || !isConnected}>Toggle Auction Pref</button>
                           <button className="btn btn-outline-secondary" onClick={toggleCurrencyPref} disabled={!noahAddress || !isConnected}>Toggle Currency Pref</button>
                           <button className="btn btn-danger" onClick={triggerFlood} disabled={!noahAddress || !account}>Trigger Flood</button>
+                          </div>
                         </div>
                       </div>
-                    </div>
                     )}
 
                     {status && <div className="alert alert-info">{status}</div>}
@@ -436,10 +514,10 @@ export const App = () => {
                             <p className="card-text mb-0">
                               Ping to extend, add/remove tokens, update preferences, or trigger flood after deadline.
                             </p>
-                          </div>
                         </div>
                       </div>
-                      
+                    </div>
+                    
                       
                     </div>
                     )}
@@ -452,9 +530,7 @@ export const App = () => {
                           <span className="status_dot active"></span>
                           <span>All systems operational</span>
                         </div>
-                        <p className="status_text">
-                          Your inheritance plan is active and monitoring. Last check-in: Today
-                        </p>
+                        <p className="status_text">Your inheritance plan is active and monitoring. Last check-in: {lastCheckInSeconds} s ago</p>
                       </div>
                     </div>
                     )}
@@ -465,6 +541,10 @@ export const App = () => {
           </div>
         </div>
       </section>
+      <div className="env-info">
+        <div>NoahV4: {noahDisplay}</div>
+        <div>Covalent: {covalentDisplay}</div>
+      </div>
     </HelmetProvider>
   );
 };

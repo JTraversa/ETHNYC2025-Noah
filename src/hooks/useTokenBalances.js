@@ -14,8 +14,13 @@ export function useTokenBalances() {
     setError(null);
     try {
       if (!chainId || !address || !apiKey) throw new Error("Missing chainId/address/apiKey");
+      // Debug: log request parameters
+      // eslint-disable-next-line no-console
+      console.log("[Covalent] Fetch start", { chainId, address });
       const url = `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?nft=false&no-nft-fetch=true&key=${apiKey}`;
       const res = await fetch(url);
+      // eslint-disable-next-line no-console
+      console.log("[Covalent] HTTP status", res.status);
       if (!res.ok) throw new Error(`Covalent error ${res.status}`);
       const data = await res.json();
       const items = data?.data?.items || [];
@@ -31,9 +36,15 @@ export function useTokenBalances() {
         }))
         .filter((t) => t.address && t.balance !== "0");
       setTokens(erc20s);
+      // eslint-disable-next-line no-console
+      console.log("[Covalent] Parsed tokens", { totalItems: items.length, nonZeroErc20s: erc20s.length });
+      return erc20s;
     } catch (e) {
       setError(e);
       setTokens([]);
+      // eslint-disable-next-line no-console
+      console.error("[Covalent] Fetch error", e);
+      return [];
     } finally {
       setLoading(false);
     }
