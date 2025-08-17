@@ -298,6 +298,36 @@ export const App = () => {
                           </div>
                         )}
                         <div className="mb-3">
+                          <label className="form-label d-block">Target Currency</label>
+                          <div className="d-flex gap-3">
+                            {/* USDC option */}
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setUsePYUSD(false)}
+                              onKeyPress={(e)=>{ if (e.key==='Enter') setUsePYUSD(false); }}
+                              className={`card p-3 text-center ${!usePYUSD ? 'border-primary' : ''}`}
+                              style={{ width: 180, cursor: 'pointer' }}
+                            >
+                              <img src={USDC_LOGO} alt="USDC" style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto 8px', objectFit: 'cover' }} />
+                              <div className="fw-semibold">USDC</div>
+                            </div>
+
+                            {/* PYUSD option */}
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setUsePYUSD(true)}
+                              onKeyPress={(e)=>{ if (e.key==='Enter') setUsePYUSD(true); }}
+                              className={`card p-3 text-center ${usePYUSD ? 'border-primary' : ''}`}
+                              style={{ width: 180, cursor: 'pointer' }}
+                            >
+                              <img src={PYUSD_LOGO} alt="PYUSD" style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto 8px', objectFit: 'cover' }} />
+                              <div className="fw-semibold">PYUSD</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mb-3">
                           <label className="form-label d-block">Liquidation Method</label>
                           <div className="d-flex gap-3">
                             {/* Uniswap option */}
@@ -326,36 +356,6 @@ export const App = () => {
                               <img src={NOAH_LOGO} alt="Noah" className="noah-logo" />
                               <div className="fw-semibold">Dutch Auction (Noah)</div>
                               <small className="text-muted">Time-based price discovery</small>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mb-3">
-                          <label className="form-label d-block">Target Currency</label>
-                          <div className="d-flex gap-3">
-                            {/* USDC option */}
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => setUsePYUSD(false)}
-                              onKeyPress={(e)=>{ if (e.key==='Enter') setUsePYUSD(false); }}
-                              className={`card p-3 text-center ${!usePYUSD ? 'border-primary' : ''}`}
-                              style={{ width: 140, cursor: 'pointer' }}
-                            >
-                              <img src={USDC_LOGO} alt="USDC" style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto 8px', objectFit: 'cover' }} />
-                              <div className="fw-semibold">USDC</div>
-                            </div>
-
-                            {/* PYUSD option */}
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => setUsePYUSD(true)}
-                              onKeyPress={(e)=>{ if (e.key==='Enter') setUsePYUSD(true); }}
-                              className={`card p-3 text-center ${usePYUSD ? 'border-primary' : ''}`}
-                              style={{ width: 140, cursor: 'pointer' }}
-                            >
-                              <img src={PYUSD_LOGO} alt="PYUSD" style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto 8px', objectFit: 'cover' }} />
-                              <div className="fw-semibold">PYUSD</div>
                             </div>
                           </div>
                         </div>
