@@ -55,6 +55,7 @@ export const App = () => {
   const covalentDisplay = covalentKey && covalentKey.length > 0 ? covalentKey : "environment not set";
   const { tokens: ownedTokens, loading: loadingTokens, fetchWithCovalent } = useTokenBalances();
   const [selectedTokenAddresses, setSelectedTokenAddresses] = useState([]);
+  const [manualTokenAddress, setManualTokenAddress] = useState("");
   const [useDutchAuction, setUseDutchAuction] = useState(false);
   const [usePYUSD, setUsePYUSD] = useState(false);
   const [useUSD, setUseUSD] = useState(false);
@@ -326,7 +327,7 @@ export const App = () => {
   const handleBuildArk = async () => {
     if (!account) return;
     try {
-      const durationSec = Math.max(1, Number(deadlineDays)) * 24 * 60 * 60;
+      const durationSec = Math.max(1, Number(deadlineDays));
       if (assetMode === 'ens') {
         if (!noahNftAddress) throw new Error('No Noahv4NFT address for this chain');
         const coll = getEnsErc721ForChain(chainId);
@@ -345,11 +346,7 @@ export const App = () => {
         const tokens = Array.isArray(selectedTokenAddresses) ? selectedTokenAddresses : [];
         const onChainUsePYUSD = useUSD ? false : usePYUSD;
         const beneficiaryParam = useUSD ? noahAddress : beneficiary;
-        if (useUSD && fernCustomerId && fernPaymentAccountId) {
-          await Noah.buildArkWithFern(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD, fernCustomerId, fernPaymentAccountId);
-        } else {
-          await Noah.buildArk(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
-        }
+        await Noah.buildArk(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
         setStatus('Ark built');
         await fetchArk();
         return;
@@ -376,7 +373,7 @@ export const App = () => {
     if (!noahAddress) return;
     try {
       setStatus("Updating deadline...");
-      const durationSec = Math.max(1, Number(deadlineDays)) * 24 * 60 * 60;
+      const durationSec = Math.max(1, Number(deadlineDays));
       await Noah.updateDeadlineDuration(noahAddress, durationSec);
       setStatus("Deadline updated");
       await fetchArk();
@@ -594,7 +591,7 @@ export const App = () => {
                           )}
                         </div>
                         <div className="mb-2">
-                          <label className="form-label">Deadline (days)</label>
+                          <label className="form-label">Deadline (seconds)</label>
                           <input type="number" min="1" className="form-control" value={deadlineDays} onChange={e=>setDeadlineDays(e.target.value)} />
                         </div>
                         {/* Tokens flow */}
@@ -655,6 +652,45 @@ export const App = () => {
                                 <small className="text-muted">No tokens detected yet. Click "Load Owned Tokens" above to fetch balances.</small>
                               </div>
                             )}
+                            <div className="mb-3">
+                              <label className="form-label">Add token by address</label>
+                              <div className="d-flex gap-2">
+                                <input
+                                  className="form-control"
+                                  placeholder="0x..."
+                                  value={manualTokenAddress}
+                                  onChange={(e)=>setManualTokenAddress(e.target.value)}
+                                />
+                                <button
+                                  className="btn btn-outline-secondary"
+                                  onClick={()=>{
+                                    const addr = (manualTokenAddress || '').trim();
+                                    if (!addr) return;
+                                    setSelectedTokenAddresses((prev)=> (prev.includes(addr) ? prev : [...prev, addr]));
+                                  }}
+                                  disabled={!manualTokenAddress}
+                                >Add</button>
+                                <button
+                                  className="btn btn-outline-secondary"
+                                  onClick={async ()=>{
+                                    try {
+                                      if (!noahAddress) throw new Error('No NoahV4 address');
+                                      const addr = (manualTokenAddress || '').trim();
+                                      if (!addr) throw new Error('Enter token address');
+                                      console.log('[UI] Approve (manual) clicked', { token: addr, spender: noahAddress, chainId });
+                                      setStatus('Approving token...');
+                                      const hash = await approveToken(addr, noahAddress);
+                                      console.log('[UI] Approve tx hash', hash);
+                                      setStatus(`Token approved: ${hash}`);
+                                    } catch (e) {
+                                      console.error('[UI] Approve failed', e);
+                                      setStatus(e?.reason || e?.shortMessage || e?.message || 'Approve failed');
+                                    }
+                                  }}
+                                  disabled={!noahAddress || !isConnected || !manualTokenAddress}
+                                >Approve</button>
+                              </div>
+                            </div>
                           </>
                         )}
                         {assetMode === 'tokens' && (
@@ -730,20 +766,11 @@ export const App = () => {
                                 disabled={!fernCustomerId}
                                 onClick={async ()=>{
                                   try {
-                                    setStatus('Creating Fern payment account...');
-                                    const { paymentAccountId } = await Fern.createPaymentAccount({ customerId: fernCustomerId, nickname: 'Primary Bank' });
-                                    setFernPaymentAccountId(paymentAccountId);
-                                    setStatus(`Payment account created: ${paymentAccountId}`);
-                                    if (useUSD && noahAddress) {
-                                      try {
-                                        await Noah.setFernInfo(noahAddress, fernCustomerId, paymentAccountId);
-                                        // eslint-disable-next-line no-console
-                                        console.log('[Fern] On-chain Fern info saved');
-                                      } catch (chainErr) {
-                                        // eslint-disable-next-line no-console
-                                        console.error('[Fern] Failed to save on-chain Fern info', chainErr);
-                                      }
-                                    }
+                                    setStatus('Mocking Fern payment account creation...');
+                                    const mockId = `mock_payacct_${Date.now()}`;
+                                    setFernPaymentAccountId(mockId);
+                                    console.log('[Fern] Mock payment account created, will be stored on-chain after flood', { mockId, customerId: fernCustomerId });
+                                    setStatus(`Payment account created (mock): ${mockId}`);
                                   } catch (e) {
                                     setStatus(e?.message || 'Fern payment account failed');
                                   }
