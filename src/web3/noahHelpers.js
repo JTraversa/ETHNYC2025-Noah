@@ -1,5 +1,6 @@
-import { getPublicClient, getWalletClient } from 'wagmi/actions';
+import { getPublicClient, writeContract } from 'wagmi/actions';
 import { parseAbi } from 'viem';
+import { wagmiConfig } from './wagmi';
 
 const ABI = parseAbi([
   'function buildArk(address,uint256,address[],bool,bool)',
@@ -26,58 +27,53 @@ export async function getArk(noahAddress, user) {
 }
 
 export async function buildArk(noahAddress, beneficiary, duration, tokens, useDA, usePYUSD) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({
+  // eslint-disable-next-line no-console
+  console.log('[Noah] buildArk start', { noahAddress, beneficiary, duration, tokensCount: tokens?.length || 0, useDA, usePYUSD });
+  const hash = await writeContract(wagmiConfig, {
     address: noahAddress,
     abi: ABI,
     functionName: 'buildArk',
     args: [beneficiary, BigInt(duration), tokens, useDA, usePYUSD]
   });
+  // eslint-disable-next-line no-console
+  console.log('[Noah] buildArk tx', hash);
+  return hash;
 }
 
 export async function pingArk(noahAddress) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'pingArk' });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'pingArk' });
 }
 
 export async function addPassengers(noahAddress, tokens) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'addPassengers', args: [tokens] });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'addPassengers', args: [tokens] });
 }
 
 export async function removePassenger(noahAddress, token) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'removePassenger', args: [token] });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'removePassenger', args: [token] });
 }
 
 export async function updateDeadlineDuration(noahAddress, duration) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'updateDeadlineDuration', args: [BigInt(duration)] });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'updateDeadlineDuration', args: [BigInt(duration)] });
 }
 
 export async function updateBeneficiary(noahAddress, newBeneficiary) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'updateBeneficiary', args: [newBeneficiary] });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'updateBeneficiary', args: [newBeneficiary] });
 }
 
 export async function updateAuctionPreference(noahAddress, value) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'updateAuctionPreference', args: [value] });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'updateAuctionPreference', args: [value] });
 }
 
 export async function updateTargetCurrencyPreference(noahAddress, value) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'updateTargetCurrencyPreference', args: [value] });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'updateTargetCurrencyPreference', args: [value] });
 }
 
 export async function fernOfframp(noahAddress, token, to, amount) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'fernOfframp', args: [token, to, BigInt(amount)] });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'fernOfframp', args: [token, to, BigInt(amount)] });
 }
 
 export async function flood(noahAddress, user) {
-  const wallet = await getWalletClient();
-  return wallet.writeContract({ address: noahAddress, abi: ABI, functionName: 'flood', args: [user] });
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'flood', args: [user] });
 }
 
 

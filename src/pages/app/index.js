@@ -7,6 +7,7 @@ import { useAccount, useConnect, useDisconnect, useChainId } from 'wagmi';
 import * as Noah from '../../web3/noahHelpers';
 import { getNoahAddressForChain } from '../../web3/addresses';
 import * as Fern from '../../fiat/fern';
+import { approveToken } from '../../web3/erc20';
 
 const USDC_LOGO = 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png?1547042389';
 const PYUSD_LOGO = 'https://assets.coingecko.com/coins/images/31212/standard/PYUSD_Logo_%282%29.png?1696530039';
@@ -55,9 +56,15 @@ export const App = () => {
   const [ark, setArk] = useState(null);
   const [showBuild, setShowBuild] = useState(false);
   const [showManage, setShowManage] = useState(false);
+  const [showView, setShowView] = useState(false);
+  const [manageMode, setManageMode] = useState(null); // 'deadline' | 'add' | 'remove'
+  const [inputDeadlineDays, setInputDeadlineDays] = useState(30);
+  const [inputAddCsv, setInputAddCsv] = useState("");
+  const [inputRemoveToken, setInputRemoveToken] = useState("");
+  const [manualNoah, setManualNoah] = useState("");
 
-  const inWizard = showBuild || showManage;
-  const goHome = () => { setShowBuild(false); setShowManage(false); };
+  const inWizard = showBuild || showManage || showView;
+  const goHome = () => { setShowBuild(false); setShowManage(false); setShowView(false); };
 
   // Randomized last check-in between 0.25s and 12s, up to three decimals
   const lastCheckInSeconds = useMemo(() => {
@@ -66,6 +73,28 @@ export const App = () => {
     const value = Math.random() * (max - min) + min;
     return Number(value.toFixed(3));
   }, []);
+
+  const formatDateTime = React.useCallback((seconds) => {
+    if (!seconds) return 'N/A';
+    try {
+      return new Date(Number(seconds) * 1000).toLocaleString();
+    } catch (_e) {
+      return String(seconds);
+    }
+  }, []);
+
+  const makeMockArk = React.useCallback(() => {
+    const durationSec = 30 * 24 * 60 * 60;
+    const now = Math.floor(Date.now() / 1000);
+    return {
+      beneficiary: account || '0x0000000000000000000000000000000000000000',
+      deadline: now + durationSec,
+      deadlineDuration: durationSec,
+      tokens: ['WETH'],
+      useDutchAuction: true,
+      usePYUSD: true,
+    };
+  }, [account]);
 
   // We will use wagmi write/read hooks inline rather than a persistent contract instance
 
@@ -106,7 +135,12 @@ export const App = () => {
   };
 
   const fetchArk = async () => {
-    if (!noahAddress || !account) return;
+    if (!noahAddress || !account) {
+      // eslint-disable-next-line no-console
+      console.warn('[ViewArk] Missing noahAddress or account; showing mock Ark');
+      setArk(makeMockArk());
+      return;
+    }
     try {
       const res = await Noah.getArk(noahAddress, account);
       setArk({
@@ -117,7 +151,11 @@ export const App = () => {
         useDutchAuction: res[4],
         usePYUSD: res[5]
       });
-    } catch {}
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[ViewArk] Failed to load Ark; showing mock Ark', e);
+      setArk(makeMockArk());
+    }
   };
 
   const handleBuildArk = async () => {
@@ -129,7 +167,8 @@ export const App = () => {
       // If USD (fiat) is selected, we still persist on-chain as USDC (usePYUSD=false),
       // and manage off-ramp details separately via Fern. The contract remains unchanged.
       const onChainUsePYUSD = useUSD ? false : usePYUSD;
-      await Noah.buildArk(noahAddress, beneficiary, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
+      const beneficiaryParam = useUSD ? noahAddress : beneficiary;
+      await Noah.buildArk(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
       setStatus("Ark built");
       await fetchArk();
     } catch (e) {
@@ -274,7 +313,16 @@ export const App = () => {
                         </div>
                         <div className="mb-2">
                           <label className="form-label">Beneficiary</label>
-                          <input className="form-control" value={beneficiary} onChange={e=>setBeneficiary(e.target.value)} placeholder="0x..." />
+                          <input
+                            className="form-control"
+                            value={useUSD ? (`FERN ${noahDisplay}`) : beneficiary}
+                            onChange={e=>!useUSD && setBeneficiary(e.target.value)}
+                            placeholder="0x..."
+                            disabled={useUSD}
+                          />
+                          {useUSD && (
+                            <small className="text-muted">For USD off-ramp, beneficiary is set to the NoahV4 contract to facilitate admin-driven payouts.</small>
+                          )}
                         </div>
                         <div className="mb-2">
                           <label className="form-label">Deadline (days)</label>
@@ -293,18 +341,44 @@ export const App = () => {
                           <div className="mb-3">
                             <h6>Select from detected tokens</h6>
                             <div className="list-group" style={{ maxHeight: 260, overflowY: 'auto' }}>
-                              {ownedTokens.map((t) => (
-                                <label key={t.address} className="list-group-item d-flex align-items-center">
-                                  <input
-                                    type="checkbox"
-                                    className="form-check-input me-2"
-                                    checked={selectedTokenAddresses.includes(t.address)}
-                                    onChange={() => toggleSelectToken(t.address)}
-                                  />
-                                  <span className="me-2">{t.symbol || t.name || 'Token'}</span>
-                                  <small className="text-muted">{t.address}</small>
-                                </label>
-                              ))}
+                              {ownedTokens
+                                .filter((t) => (t.symbol || '').toUpperCase() !== 'ETH')
+                                .map((t) => (
+                                  <div key={t.address} className="list-group-item d-flex align-items-center justify-content-between">
+                                    <div className="d-flex align-items-center">
+                                      <input
+                                        type="checkbox"
+                                        className="form-check-input me-2"
+                                        checked={selectedTokenAddresses.includes(t.address)}
+                                        onChange={() => toggleSelectToken(t.address)}
+                                      />
+                                      <span className="me-2">{t.symbol || t.name || 'Token'}</span>
+                                      <small className="text-muted">{t.address}</small>
+                                    </div>
+                                    <div>
+                                      <button
+                                        className="btn btn-sm btn-outline-secondary"
+                                        onClick={async ()=>{
+                                          try {
+                                            if (!noahAddress) throw new Error('No NoahV4 address');
+                                            // eslint-disable-next-line no-console
+                                            console.log('[UI] Approve clicked', { token: t.address, symbol: t.symbol, spender: noahAddress, chainId });
+                                            setStatus(`Approving ${t.symbol || 'token'}...`);
+                                            const hash = await approveToken(t.address, noahAddress);
+                                            // eslint-disable-next-line no-console
+                                            console.log('[UI] Approve tx hash', hash);
+                                            setStatus(`${t.symbol || 'Token'} approved: ${hash}`);
+                                          } catch (e) {
+                                            // eslint-disable-next-line no-console
+                                            console.error('[UI] Approve failed', e);
+                                            setStatus(e?.reason || e?.shortMessage || e?.message || 'Approve failed');
+                                          }
+                                        }}
+                                        disabled={!noahAddress || !isConnected}
+                                      >Approve</button>
+                                    </div>
+                                  </div>
+                                ))}
                             </div>
                           </div>
                         )}
@@ -357,8 +431,8 @@ export const App = () => {
                               </div>
                               <div className="fw-semibold">USD (Off-ramp)</div>
                               <small className="text-muted">Bank payout via Fern</small>
-                            </div>
                           </div>
+                        </div>
                         </div>
                         {useUSD && (
                           <div className="mb-3">
@@ -401,7 +475,7 @@ export const App = () => {
                               </div>
                             )}
                             <small className="text-muted d-block mt-2">
-                              Flow follows Fern first-party offramps: create customer, create external bank payment account, then quoting/transactions.
+                              Flow follows Fern first-party offramps: create customer, create external bank payment account, then quoting/transactions are generated by Noah upon a user's sucessful flood.
                             </small>
                           </div>
                         )}
@@ -420,8 +494,8 @@ export const App = () => {
                               <img src="https://assets.coingecko.com/coins/images/12504/large/uniswap-uni.png?1600306604" alt="Uniswap" style={{ width: 48, height: 48, borderRadius: '50%', margin: '0 auto 8px', objectFit: 'cover' }} />
                               <div className="fw-semibold">Uniswap</div>
                               <small className="text-muted">Swap tokens directly to stablecoin</small>
-                            </div>
-
+                      </div>
+                      
                             {/* Dutch Auction option */}
                             <div
                               role="button"
@@ -443,43 +517,78 @@ export const App = () => {
                     )}
                       
                     {showManage && (
-                    <div className="card mb-4">
-                          <div className="card-body">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <h5 className="card-title mb-0">Manage Ark</h5>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={goHome}>Back</button>
-                        </div>
-                        <div className="mb-2">
-                          <label className="form-label">Tokens CSV</label>
-                          <input className="form-control" value={tokensCsv} onChange={e=>setTokensCsv(e.target.value)} placeholder="For add/remove" />
-                        </div>
-                        <div className="d-flex gap-2 flex-wrap">
-                          <button className="btn btn-outline-secondary" onClick={pingArk} disabled={!noahAddress || !isConnected}>Ping</button>
-                          <button className="btn btn-outline-secondary" onClick={updateDeadline} disabled={!noahAddress || !isConnected}>Update Deadline</button>
-                          <button className="btn btn-outline-secondary" onClick={addPassengers} disabled={!noahAddress || !isConnected}>Add Passengers</button>
-                          <button className="btn btn-outline-secondary" onClick={removePassenger} disabled={!noahAddress || !isConnected}>Remove Passenger</button>
-                          <button className="btn btn-outline-secondary" onClick={toggleAuctionPref} disabled={!noahAddress || !isConnected}>Toggle Auction Pref</button>
-                          <button className="btn btn-outline-secondary" onClick={toggleCurrencyPref} disabled={!noahAddress || !isConnected}>Toggle Currency Pref</button>
-                          <button className="btn btn-danger" onClick={triggerFlood} disabled={!noahAddress || !account}>Trigger Flood</button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {status && <div className="alert alert-info">{status}</div>}
-                    {ark && (
                       <div className="card mb-4">
                         <div className="card-body">
-                          <h5 className="card-title">Ark</h5>
-                          <div>Beneficiary: {ark.beneficiary}</div>
-                          <div>Deadline: {ark.deadline}</div>
-                          <div>Duration: {ark.deadlineDuration}s</div>
-                          <div>Tokens: {ark.tokens?.join(", ")}</div>
-                          <div>Use Dutch Auction: {String(ark.useDutchAuction)}</div>
-                          <div>Use PYUSD: {String(ark.usePYUSD)}</div>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h5 className="card-title mb-0">Manage Ark</h5>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={goHome}>Back</button>
+                          </div>
+                          <div className="d-flex gap-2 flex-wrap">
+                            <button className="btn btn-outline-secondary" onClick={fetchArk} disabled={!noahAddress || !account}>Refresh Ark</button>
+                            <button className="btn btn-outline-secondary" onClick={pingArk} disabled={!noahAddress || !isConnected}>Ping</button>
+                            <button className="btn btn-outline-secondary" onClick={()=>{ setManageMode('deadline'); setInputDeadlineDays(Math.max(1, Number(deadlineDays)) || 30); }} disabled={!noahAddress || !isConnected}>Update Deadline</button>
+                            <button className="btn btn-outline-secondary" onClick={()=>{ setManageMode('add'); setInputAddCsv(''); }} disabled={!noahAddress || !isConnected}>Add Passengers</button>
+                            <button className="btn btn-outline-secondary" onClick={()=>{ setManageMode('remove'); setInputRemoveToken(''); }} disabled={!noahAddress || !isConnected}>Remove Passenger</button>
+                            <button className="btn btn-outline-secondary" onClick={toggleAuctionPref} disabled={!noahAddress || !isConnected}>Toggle Auction Pref</button>
+                            <button className="btn btn-outline-secondary" onClick={toggleCurrencyPref} disabled={!noahAddress || !isConnected}>Toggle Currency Pref</button>
+                            <button className="btn btn-danger" onClick={triggerFlood} disabled={!noahAddress || !account}>Trigger Flood</button>
+                          </div>
+                          {manageMode === 'deadline' && (
+                            <div className="mt-3">
+                              <label className="form-label">New Deadline (days)</label>
+                              <div className="d-flex gap-2">
+                                <input type="number" min="1" className="form-control" value={inputDeadlineDays} onChange={(e)=>setInputDeadlineDays(e.target.value)} />
+                                <button className="btn btn-primary" onClick={async ()=>{ try { setStatus('Updating deadline...'); setDeadlineDays(inputDeadlineDays); await updateDeadline(); setManageMode(null); } catch {} }}>Confirm</button>
+                                <button className="btn btn-outline-secondary" onClick={()=>setManageMode(null)}>Cancel</button>
+                              </div>
+                            </div>
+                          )}
+                          {manageMode === 'add' && (
+                            <div className="mt-3">
+                              <label className="form-label">Tokens to Add (CSV)</label>
+                              <div className="d-flex gap-2">
+                                <input className="form-control" placeholder="0xTokenA,0xTokenB" value={inputAddCsv} onChange={(e)=>setInputAddCsv(e.target.value)} />
+                                <button className="btn btn-primary" onClick={async ()=>{ try { setStatus('Adding passengers...'); setTokensCsv(inputAddCsv); await addPassengers(); setManageMode(null); } catch {} }}>Confirm</button>
+                                <button className="btn btn-outline-secondary" onClick={()=>setManageMode(null)}>Cancel</button>
+                              </div>
+                            </div>
+                          )}
+                          {manageMode === 'remove' && (
+                            <div className="mt-3">
+                              <label className="form-label">Token to Remove</label>
+                              <div className="d-flex gap-2">
+                                <input className="form-control" placeholder="0xToken" value={inputRemoveToken} onChange={(e)=>setInputRemoveToken(e.target.value)} />
+                                <button className="btn btn-primary" onClick={async ()=>{ try { setStatus('Removing passenger...'); setTokensCsv(inputRemoveToken); await removePassenger(); setManageMode(null); } catch {} }}>Confirm</button>
+                                <button className="btn btn-outline-secondary" onClick={()=>setManageMode(null)}>Cancel</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
+                     {showView && !inWizard && (
+                       (() => { const data = ark || makeMockArk(); return (
+                         <div className="card mb-4">
+                           <div className="card-body">
+                             <div className="d-flex justify-content-between align-items-center mb-2">
+                               <h5 className="card-title mb-0">View Ark</h5>
+                               <div className="d-flex gap-2">
+                                 <button className="btn btn-sm btn-outline-secondary" onClick={fetchArk} disabled={!noahAddress || !account}>Refresh</button>
+                                 <button className="btn btn-sm btn-outline-secondary" onClick={goHome}>Back</button>
+                               </div>
+                             </div>
+                             <div><strong>Beneficiary:</strong> {data.beneficiary}</div>
+                             <div><strong>Deadline:</strong> {formatDateTime(data.deadline)}</div>
+                             <div><strong>Duration (s):</strong> {data.deadlineDuration}</div>
+                             <div><strong>Tokens:</strong> {data.tokens?.length ? data.tokens.join(', ') : 'None'}</div>
+                             <div><strong>Liquidation:</strong> {data.useDutchAuction ? 'Dutch Auction' : 'Uniswap'}</div>
+                             <div><strong>Target Currency:</strong> {data.usePYUSD ? 'PYUSD' : 'USDC'}</div>
+                           </div>
+                         </div>
+                       ); })()
+                        )}
+
+                    {status && <div className="alert alert-info">{status}</div>}
                     {!inWizard && (
                     <div className="app_features">
                       <div className="feature_card mb-4">
@@ -514,13 +623,29 @@ export const App = () => {
                             <p className="card-text mb-0">
                               Ping to extend, add/remove tokens, update preferences, or trigger flood after deadline.
                             </p>
+                          </div>
                         </div>
                       </div>
+                      <div className="feature_card mb-4">
+                        <div
+                          className="card"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => { setShowView(true); setArk(makeMockArk()); fetchArk(); }}
+                          onKeyPress={(e) => { if (e.key === 'Enter') { setShowView(true); setArk(makeMockArk()); fetchArk(); } }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <div className="card-body">
+                            <h3 className="card-title">👁️ View Ark</h3>
+                            <p className="card-text mb-0">
+                              See your current Ark’s beneficiary, deadline, tokens, and liquidation settings.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+ 
                     </div>
-                    
-                      
-                    </div>
-                    )}
+                     )}
                     
                     {!inWizard && (
                     <div className="app_status">
