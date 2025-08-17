@@ -8,60 +8,7 @@ import {
 } from "../../content_option";
 
 export const About = () => {
-  const features = [
-    {
-      title: "🔐 Dead Man Switch Technology",
-      description: "Our innovative dead man switch automatically activates when you're unable to perform regular check-ins, ensuring your assets are safely transferred to your beneficiaries."
-    },
-    {
-      title: "🌍 Real-World Connectivity", 
-      description: "Unlike other solutions, Noah bridges the digital and physical worlds through multiple verification methods including biometric, legal, and social confirmations."
-    },
-    {
-      title: "🛡️ Multi-Layer Security",
-      description: "Combines blockchain security with real-world verification systems to create the most robust inheritance protection available."
-    },
-    {
-      title: "👨‍👩‍👧‍👦 Beneficiary Management",
-      description: "Easy setup and management of trusted beneficiaries with customizable inheritance rules and asset distribution."
-    },
-    {
-      title: "📊 Asset Monitoring",
-      description: "Track all your connected cryptocurrency wallets and assets in one secure dashboard with real-time updates."
-    },
-    {
-      title: "⚡ Automated Triggers",
-      description: "Smart contracts automatically execute inheritance transfers based on predefined conditions and verification confirmations."
-    }
-  ];
-
-  const timeline = [
-    {
-      phase: "Research & Development",
-      description: "Extensive research into cryptocurrency inheritance challenges and development of dead man switch technology",
-      status: "Completed"
-    },
-    {
-      phase: "Smart Contract Development", 
-      description: "Building secure, audited smart contracts for asset management and inheritance triggers",
-      status: "In Progress"
-    },
-    {
-      phase: "Real-World Integration",
-      description: "Developing connections to legal, biometric, and social verification systems",
-      status: "In Progress"
-    },
-    {
-      phase: "Beta Testing",
-      description: "Limited beta release with select users to test and refine the platform",
-      status: "Upcoming"
-    },
-    {
-      phase: "Public Launch",
-      description: "Full public release of the Noah cryptocurrency inheritance platform",
-      status: "Upcoming"
-    }
-  ];
+  // removed features and timeline
 
   return (
     <HelmetProvider>
@@ -78,52 +25,9 @@ export const About = () => {
           </Col>
         </Row>
         
-        <Row className="sec_sp">
-          <Col lg="5">
-            <h2 className="color_sec py-4">Our Mission</h2>
-          </Col>
-          <Col lg="7" className="d-flex align-items-center">
-            <div>
-              <p>{dataabout.aboutme1}</p>
-              <p>{dataabout.aboutme2}</p>
-            </div>
-          </Col>
-        </Row>
+        
 
-        <Row className="sec_sp">
-          <Col lg="5">
-            <h2 className="color_sec py-4">Key Features</h2>
-          </Col>
-          <Col lg="7">
-            {features.map((feature, i) => (
-              <div key={i} className="feature-item mb-4">
-                <h4 className="feature-title">{feature.title}</h4>
-                <p className="feature-description">{feature.description}</p>
-              </div>
-            ))}
-          </Col>
-        </Row>
-
-        <Row className="sec_sp">
-          <Col lg="5">
-            <h2 className="color_sec py-4">Development Timeline</h2>
-          </Col>
-          <Col lg="7">
-            <div className="timeline">
-              {timeline.map((item, i) => (
-                <div key={i} className="timeline-item mb-4">
-                  <div className="timeline-content">
-                    <h4 className="timeline-phase">{item.phase}</h4>
-                    <p className="timeline-description">{item.description}</p>
-                    <span className={`timeline-status status-${item.status.toLowerCase().replace(' ', '-')}`}>
-                      {item.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Col>
-        </Row>
+        
 
         <Row className="sec_sp">
           <Col lg="5">
