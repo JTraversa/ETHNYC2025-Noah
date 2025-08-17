@@ -4,6 +4,8 @@ import { Helmet, HelmetProvider } from "react-helmet-async";
 import { meta } from "../../content_option";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { useAccount, useConnect, useDisconnect, useChainId } from 'wagmi';
+import { switchChain } from 'wagmi/actions';
+import { wagmiConfig } from '../../web3/wagmi';
 import * as Noah from '../../web3/noahHelpers';
 import { getNoahAddressForChain } from '../../web3/addresses';
 import * as Fern from '../../fiat/fern';
@@ -62,6 +64,7 @@ export const App = () => {
   const [inputAddCsv, setInputAddCsv] = useState("");
   const [inputRemoveToken, setInputRemoveToken] = useState("");
   const [manualNoah, setManualNoah] = useState("");
+  const [selectedChainId, setSelectedChainId] = useState(chainId || 1);
 
   const inWizard = showBuild || showManage || showView;
   const goHome = () => { setShowBuild(false); setShowManage(false); setShowView(false); };
@@ -82,6 +85,28 @@ export const App = () => {
       return String(seconds);
     }
   }, []);
+
+  React.useEffect(() => {
+    setSelectedChainId(chainId || 1);
+  }, [chainId]);
+
+  const handleSelectChain = async (e) => {
+    const targetId = Number(e.target.value);
+    setSelectedChainId(targetId);
+    try {
+      if (targetId === 1 || targetId === 42161) {
+        await switchChain(wagmiConfig, { chainId: targetId });
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('[ChainSelect] Unsupported chain in app config; only Ethereum and Arbitrum switching are enabled for now');
+        setSelectedChainId(chainId || 1);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[ChainSelect] switch failed', err);
+      setSelectedChainId(chainId || 1);
+    }
+  };
 
   const makeMockArk = React.useCallback(() => {
     const durationSec = 30 * 24 * 60 * 60;
@@ -266,6 +291,16 @@ export const App = () => {
   return (
     <HelmetProvider>
       <section id="app" className="app">
+        <div className="chain-selector" onClick={(e)=>e.stopPropagation()} onMouseDown={(e)=>e.stopPropagation()}>
+          <select className="form-select form-select-sm" style={{ width: 200 }} value={selectedChainId} onChange={handleSelectChain}>
+            <option value="1">Ethereum</option>
+            <option value="42161">Arbitrum</option>
+            <option value="5000">Katana (placeholder)</option>
+            <option value="88888">Chiliz (placeholder)</option>
+            <option value="295">Hedera (placeholder)</option>
+            <option value="4893">Zircuit (placeholder)</option>
+          </select>
+        </div>
         <Helmet>
           <meta charSet="utf-8" />
           <title> App | {meta.title}</title>
@@ -566,7 +601,7 @@ export const App = () => {
                         </div>
                       </div>
                     )}
-                     {showView && !inWizard && (
+                     {showView && (
                        (() => { const data = ark || makeMockArk(); return (
                          <div className="card mb-4">
                            <div className="card-body">
