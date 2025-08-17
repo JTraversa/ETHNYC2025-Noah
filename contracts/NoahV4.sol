@@ -10,6 +10,7 @@ import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract NoahV4 {
     using PoolIdLibrary for PoolKey;
@@ -19,6 +20,21 @@ contract NoahV4 {
     address public immutable usdcAddress;
     address public immutable pyrusdAddress; // PayPal USD
     address public immutable hookAddress;
+    
+    // Chainlink price feed mapping: token => price feed address
+    mapping(address => address) public priceFeeds;
+    // Flare price: token => feedId (bytes21) used on Flare periphery getFeedById
+    mapping(address => bytes21) public flareFeedIds;
+    // Flare periphery data provider contract
+    address public flareDataProvider;
+    
+    // Admin to set price feeds
+    address public admin;
+    
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin can call this function");
+        _;
+    }
 
     struct Ark {
         address beneficiary;
@@ -61,12 +77,167 @@ contract NoahV4 {
     event DutchAuctionBid(address indexed user, address indexed token, address bidder, uint256 bidAmount, uint256 currentPrice);
     event DutchAuctionSettled(address indexed user, address indexed token, address winner, uint256 amount, address beneficiary);
     event PYUSDClaimed(address indexed user, address indexed beneficiary, uint256 amount);
+    event PriceFeedUpdated(address indexed token, address indexed priceFeed);
+    event FlareFeedIdUpdated(address indexed token, bytes21 feedId);
+    event FlareDataProviderUpdated(address indexed provider);
 
     constructor(IPoolManager _poolManager, address _usdc, address _pyrusd, address _hook) {
         poolManager = _poolManager;
         usdcAddress = _usdc;
         pyrusdAddress = _pyrusd;
         hookAddress = _hook;
+        admin = msg.sender;
+    }
+    
+    /**
+     * @notice Sets the price feed address for a token (admin only)
+     * @param _token The token address
+     * @param _priceFeed The Chainlink price feed address
+     */
+    function setPriceFeed(address _token, address _priceFeed) external onlyAdmin {
+        require(_token != address(0), "Token cannot be zero address");
+        require(_priceFeed != address(0), "Price feed cannot be zero address");
+        priceFeeds[_token] = _priceFeed;
+        emit PriceFeedUpdated(_token, _priceFeed);
+    }
+    
+    /**
+     * @notice Sets the Flare periphery data provider (admin only)
+     */
+    function setFlareDataProvider(address _provider) external onlyAdmin {
+        require(_provider != address(0), "Provider cannot be zero address");
+        flareDataProvider = _provider;
+        emit FlareDataProviderUpdated(_provider);
+    }
+
+    /**
+     * @notice Sets the Flare feed id (bytes21) for a token (admin only)
+     */
+    function setFlareFeedId(address _token, bytes21 _feedId) external onlyAdmin {
+        require(_token != address(0), "Token cannot be zero address");
+        flareFeedIds[_token] = _feedId;
+        emit FlareFeedIdUpdated(_token, _feedId);
+    }
+    
+    /**
+     * @notice Transfers admin role to a new address (admin only)
+     * @param _newAdmin The new admin address
+     */
+    function transferAdmin(address _newAdmin) external onlyAdmin {
+        require(_newAdmin != address(0), "New admin cannot be zero address");
+        admin = _newAdmin;
+    }
+    
+    /**
+     * @notice Gets the current price of a token from Chainlink oracle
+     * @param _token The token address
+     * @return price The current price in USD (8 decimals)
+     */
+    function getTokenPrice(address _token) public view returns (uint256 price) {
+        address priceFeedAddress = priceFeeds[_token];
+        require(priceFeedAddress != address(0), "Price feed not set for token");
+        
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(priceFeedAddress);
+        (, int256 priceInt, , , ) = priceFeed.latestRoundData();
+        require(priceInt > 0, "Invalid price from oracle");
+        
+        return uint256(priceInt);
+    }
+
+    // Minimal Flare periphery interface for getFeedById
+    interface IFlarePeripheryReader {
+        function getFeedById(bytes21 _feedId) external view returns (uint256 price, uint256 timestamp);
+        function getFeedByIdWithDecimals(bytes21 _feedId) external view returns (uint256 price, uint8 decimals);
+    }
+
+    /**
+     * @notice Returns average USD price (1e8 scale) across Chainlink and Flare if available.
+     */
+    function getAverageUsdPrice(address _token) public view returns (uint256) {
+        uint256 count = 0;
+        uint256 sumScaled = 0;
+
+        // Chainlink
+        address cl = priceFeeds[_token];
+        if (cl != address(0)) {
+            AggregatorV3Interface feed = AggregatorV3Interface(cl);
+            (, int256 p, , , ) = feed.latestRoundData();
+            if (p > 0) {
+                uint8 dec = feed.decimals();
+                uint256 scaled = _scaleTo1e8(uint256(p), dec);
+                sumScaled += scaled;
+                count += 1;
+            }
+        }
+
+        // Flare periphery via getFeedById(feedId)
+        if (flareDataProvider != address(0)) {
+            bytes21 feedId = flareFeedIds[_token];
+            if (feedId != bytes21(0)) {
+                IFlarePeripheryReader reader = IFlarePeripheryReader(flareDataProvider);
+                uint256 fPrice;
+                uint8 fDec;
+                // Try decimals-aware first
+                try reader.getFeedByIdWithDecimals(feedId) returns (uint256 priceF, uint8 decF) {
+                    fPrice = priceF; fDec = decF;
+                } catch {
+                    // Fallback to default getFeedById and assume 8 decimals
+                    try reader.getFeedById(feedId) returns (uint256 priceF2, uint256 /*ts*/) {
+                        fPrice = priceF2; fDec = 8;
+                    } catch {
+                        fPrice = 0; fDec = 8;
+                    }
+                }
+                if (fPrice > 0) {
+                    uint256 scaledF = _scaleTo1e8(fPrice, fDec);
+                    sumScaled += scaledF;
+                    count += 1;
+                }
+            }
+        }
+
+        require(count > 0, "No price feeds available");
+        return sumScaled / count;
+    }
+
+    function _scaleTo1e8(uint256 amount, uint8 decimals_) internal pure returns (uint256) {
+        if (decimals_ == 8) return amount;
+        if (decimals_ > 8) {
+            return amount / (10 ** (decimals_ - 8));
+        } else {
+            return amount * (10 ** (8 - decimals_));
+        }
+    }
+    
+    /**
+     * @notice Gets the current auction price for a Dutch auction
+     * @param _user The user address
+     * @param _token The token address
+     * @return currentPrice The current auction price
+     */
+    function getCurrentAuctionPrice(address _user, address _token) external view returns (uint256 currentPrice) {
+        DutchAuction storage auction = auctions[_user][_token];
+        require(auction.active, "Auction not active");
+        
+        uint256 timeElapsed = block.timestamp - auction.startTime;
+        if (timeElapsed >= auction.duration) {
+            return auction.endPrice; // Auction finished, return end price
+        }
+        
+        // Linear price decrease from start to end
+        uint256 priceRange = auction.startPrice - auction.endPrice;
+        uint256 priceDecrease = (priceRange * timeElapsed) / auction.duration;
+        
+        return auction.startPrice - priceDecrease;
+    }
+    
+    /**
+     * @notice Checks if a price feed is set for a token
+     * @param _token The token address
+     * @return True if price feed is set, false otherwise
+     */
+    function hasPriceFeed(address _token) external view returns (bool) {
+        return priceFeeds[_token] != address(0);
     }
 
     /**
@@ -177,7 +348,7 @@ contract NoahV4 {
     ) external returns (bytes memory) {
         require(msg.sender == address(poolManager), "Only PoolManager can call this");
         
-        (address beneficiary) = abi.decode(data, (address));
+        (address beneficiary, address tokenOut) = abi.decode(data, (address, address));
 
         // The amount of USDC or PYUSD received from the swap
         // For zeroForOne = true (token -> USDC/PYUSD): amount1 should be positive (USDC/PYUSD coming in)
@@ -197,10 +368,8 @@ contract NoahV4 {
         }
         
         if (currencyReceived > 0) {
-            // Determine which currency was received based on the pool
-            // For now, we'll assume USDC (this can be enhanced with pool detection)
-            // Transfer the currency to the beneficiary
-            IERC20(usdcAddress).safeTransfer(beneficiary, currencyReceived);
+            // Transfer the received output token to the beneficiary
+            IERC20(tokenOut).safeTransfer(beneficiary, currencyReceived);
         }
         
         return "";
@@ -240,12 +409,18 @@ contract NoahV4 {
 
             uint256 userBalance = IERC20(tokenAddress).balanceOf(_user);
             if (userBalance > 0) {
-                // Start a Dutch auction for this token
-                // For now, use a simple pricing model based on token amount
-                // In a real implementation, you might want to get market prices from oracles
-                uint256 estimatedPrice = userBalance; // 1:1 ratio as placeholder
-                uint256 startPrice = estimatedPrice * 110 / 100; // 110% of estimated price
-                uint256 endPrice = estimatedPrice * 90 / 100;   // 90% of estimated price
+                // Get average price from Chainlink & Flare (1e8 decimals)
+                uint256 tokenPriceUSD = getAverageUsdPrice(tokenAddress);
+                
+                // Calculate total value in USD (8 decimals from oracle)
+                uint256 totalValueUSD = (userBalance * tokenPriceUSD) / 1e8;
+                
+                // Set start price at 0.1% above oracle price
+                uint256 startPrice = totalValueUSD + (totalValueUSD * 1) / 1000; // +0.1%
+                
+                // Set end price at 10% below oracle price
+                uint256 endPrice = totalValueUSD - (totalValueUSD * 10) / 100; // -10%
+                
                 uint256 duration = 3600; // 1 hour
                 
                 // Transfer tokens to this contract
@@ -306,7 +481,7 @@ contract NoahV4 {
                         amountSpecified: int256(userBalance),
                         sqrtPriceLimitX96: 0
                     }),
-                    abi.encode(_account.beneficiary) // Pass beneficiary to callback
+                    abi.encode(_account.beneficiary, usdcAddress) // Pass beneficiary and tokenOut to callback
                 );
 
                 // Calculate USDC received from this swap
@@ -326,8 +501,8 @@ contract NoahV4 {
                 
                 if (usdcFromSwap > 0) {
                     if (_account.usePYUSD) {
-                        // Convert USDC to PYUSD
-                        uint256 pyrusdReceived = _swapUSDCToPYUSD(usdcFromSwap);
+                        // Convert USDC to PYUSD and deliver directly to beneficiary via callback
+                        uint256 pyrusdReceived = _swapUSDCToPYUSD(usdcFromSwap, _account.beneficiary);
                         totalTargetCurrencyReceived += pyrusdReceived;
                     } else {
                         totalTargetCurrencyReceived += usdcFromSwap;
@@ -341,28 +516,14 @@ contract NoahV4 {
      * @notice Allows beneficiaries to claim their accumulated PYUSD.
      * @param _user The user whose Ark was liquidated.
      */
-    function claimPYUSD(address _user) external {
-        require(arks[_user].deadline == 0, "Ark not yet liquidated");
-        require(arks[_user].usePYUSD, "Ark not configured for PYUSD");
-        
-        address beneficiary = arks[_user].beneficiary;
-        require(msg.sender == beneficiary, "Only beneficiary can claim");
-        
-        uint256 pyrusdBalance = IERC20(pyrusdAddress).balanceOf(address(this));
-        require(pyrusdBalance > 0, "No PYUSD to claim");
-        
-        // Transfer PYUSD to beneficiary
-        IERC20(pyrusdAddress).safeTransfer(beneficiary, pyrusdBalance);
-        
-        emit PYUSDClaimed(_user, beneficiary, pyrusdBalance);
-    }
+    // claimPYUSD no longer necessary since PYUSD is delivered directly to the beneficiary via callback
 
     /**
      * @notice Internal function to swap USDC to PYUSD.
      * @param _usdcAmount The amount of USDC to swap.
      * @return The amount of PYUSD received.
      */
-    function _swapUSDCToPYUSD(uint256 _usdcAmount) internal returns (uint256) {
+    function _swapUSDCToPYUSD(uint256 _usdcAmount, address beneficiary) internal returns (uint256) {
         // Approve the PoolManager to spend USDC
         IERC20(usdcAddress).approve(address(poolManager), _usdcAmount);
         
@@ -383,7 +544,7 @@ contract NoahV4 {
                 amountSpecified: int256(_usdcAmount),
                 sqrtPriceLimitX96: 0
             }),
-            abi.encode(address(this)) // Pass this contract as beneficiary to receive PYUSD
+            abi.encode(beneficiary, pyrusdAddress) // Pass beneficiary and tokenOut so callback delivers PYUSD
         );
 
         // Calculate PYUSD received from this swap

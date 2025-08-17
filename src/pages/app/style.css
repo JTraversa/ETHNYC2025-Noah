@@ -1,3 +1,18 @@
+.noah-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin: 0 auto 8px;
+  object-fit: cover;
+  filter: grayscale(100%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .noah-logo {
+    filter: none;
+  }
+}
+
 .app {
   min-height: 100vh;
   padding-top: 120px;
