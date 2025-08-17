@@ -1,7 +1,17 @@
 {
-    "name": "react-portfolio",
-    "version": "0.1.0",
-    "private": true,
+    "name": "ethnyc2025-noah",
+    "version": "1.0.0",
+    "description": "Noah V4 - Uniswap V4 Integration for ETHNYC 2025",
+    "main": "index.js",
+    "scripts": {
+        "test": "hardhat test",
+        "compile": "hardhat compile",
+        "deploy": "hardhat run scripts/deploy.js",
+        "start": "react-scripts start",
+        "build": "react-scripts build",
+        "predeploy": "yarn build && cp build/index.html build/404.html",
+        "deploy": "gh-pages -d build"
+    },
     "dependencies": {
         "axios": "^1.8.1",
         "bootstrap": "^5.2.3",
@@ -18,13 +28,14 @@
         "typewriter-effect": "^2.18.2",
         "web-vitals": "^3.1.1"
     },
-    "scripts": {
-        "start": "react-scripts start",
-        "build": "react-scripts build",
-        "test": "react-scripts test",
-        "eject": "react-scripts eject",
-        "predeploy": "yarn build && cp build/index.html build/404.html",
-        "deploy": "gh-pages -d build"
+    "devDependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+        "@openzeppelin/contracts": "^5.0.0",
+        "@uniswap/v4-core": "^1.0.0",
+
+        "hardhat": "^2.19.0",
+        "chai": "^4.3.7",
+        "ethers": "^6.8.0"
     },
     "eslintConfig": {
         "extends": [
