@@ -488,7 +488,7 @@ export const App = () => {
                     <h1 className="display-4 mb-0" style={{ marginLeft: 12 }}>App</h1>
                   </div>
                   <p className="lead">
-                    Secure your cryptocurrency inheritance with our innovative dead man switch technology
+                    Secure your cryptocurrency with our innovative dead man switch infrastructure
                   </p>
                 </div>
                 
