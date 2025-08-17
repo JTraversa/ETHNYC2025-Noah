@@ -65,6 +65,18 @@ export const App = () => {
   const [inputRemoveToken, setInputRemoveToken] = useState("");
   const [manualNoah, setManualNoah] = useState("");
   const [selectedChainId, setSelectedChainId] = useState(chainId || 1);
+  const [chainMenuOpen, setChainMenuOpen] = useState(false);
+
+  const CHAIN_OPTIONS = [
+    { id: 1, name: 'Ethereum', logo: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1595348880' },
+    { id: 42161, name: 'Arbitrum', logo: 'https://img.cryptorank.io/coins/arbitrum1696871846920.png' },
+    { id: 747474, name: 'Katana', logo: 'https://pbs.twimg.com/profile_images/1927769809216843776/IJexy9VY_400x400.jpg' },
+    { id: 88888, name: 'Chiliz', logo: 'https://assets.coingecko.com/coins/images/8834/large/Chiliz.png?1559606624' },
+    { id: 295, name: 'Hedera', logo: 'https://assets.coingecko.com/coins/images/3688/large/hbar.png?1637045634' },
+    { id: 48900, name: 'Zircuit', logo: 'https://docs.zircuit.com/~gitbook/image?url=https%3A%2F%2F1825535913-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Forganizations%252FFAE3Bv5wcSjxEUOFI86x%252Fsites%252Fsite_zN0g8%252Ficon%252FBtQKlRXrMfIyrjxUHMS7%252Fzircuit-inverted-icon.svg%3Falt%3Dmedia%26token%3D3d38060e-00aa-47e6-89c8-6e6092166658&width=32&dpr=4&quality=100&sign=b528a02a&sv=2' },
+    { id: 747, name: 'Flow', logo: 'https://cdn.prod.website-files.com/5f734f4dbd95382f4fdfa0ea/67e1750c3eb15026e1ca6618_Flow_Icon_Color.svg' },
+  ];
+  const selectedChain = CHAIN_OPTIONS.find(c => c.id === selectedChainId) || CHAIN_OPTIONS[0];
 
   const inWizard = showBuild || showManage || showView;
   const goHome = () => { setShowBuild(false); setShowManage(false); setShowView(false); };
@@ -90,16 +102,15 @@ export const App = () => {
     setSelectedChainId(chainId || 1);
   }, [chainId]);
 
-  const handleSelectChain = async (e) => {
-    const targetId = Number(e.target.value);
+  const selectChain = async (targetId) => {
     setSelectedChainId(targetId);
     try {
-      if (targetId === 1 || targetId === 42161) {
+      if (targetId === 1 || targetId === 42161 || targetId === 88888 || targetId === 747474 || targetId === 295 || targetId === 48900 || targetId === 747) {
         // First try wagmi's switch
         await switchChain(wagmiConfig, { chainId: targetId });
       } else {
         // eslint-disable-next-line no-console
-        console.warn('[ChainSelect] Unsupported chain in app config; only Ethereum and Arbitrum switching are enabled for now');
+        console.warn('[ChainSelect] Unsupported chain in app config; only Ethereum, Arbitrum, Chiliz switching are enabled for now');
         setSelectedChainId(chainId || 1);
         return;
       }
@@ -113,7 +124,7 @@ export const App = () => {
         setSelectedChainId(chainId || 1);
         return;
       }
-      const hexMap = { 1: '0x1', 42161: '0xa4b1' };
+      const hexMap = { 1: '0x1', 42161: '0xa4b1', 88888: '0x15b38', 747474: '0xb6ef2', 295: '0x127', 48900: '0xbf74', 747: '0x2EB' };
       const hexId = hexMap[targetId];
       try {
         await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexId }] });
@@ -134,6 +145,91 @@ export const App = () => {
           } catch (addErr) {
             // eslint-disable-next-line no-console
             console.error('[ChainSelect] add chain failed', addErr);
+            setSelectedChainId(chainId || 1);
+          }
+        } else if (switchErr?.code === 4902 && targetId === 88888) {
+          try {
+            await provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x15b38',
+                chainName: 'Chiliz',
+                rpcUrls: ['https://rpc.chiliz.com'],
+                nativeCurrency: { name: 'Chiliz', symbol: 'CHZ', decimals: 18 },
+                blockExplorerUrls: ['https://scan.chiliz.com'],
+              }],
+            });
+          } catch (addErr) {
+            // eslint-disable-next-line no-console
+            console.error('[ChainSelect] add Chiliz failed', addErr);
+            setSelectedChainId(chainId || 1);
+          }
+        } else if (switchErr?.code === 4902 && targetId === 747474) {
+          try {
+            await provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0xb6ef2',
+                chainName: 'Katana',
+                rpcUrls: ['https://rpc.katana'],
+                nativeCurrency: { name: 'Katana ETH', symbol: 'ETH', decimals: 18 },
+                blockExplorerUrls: ['https://scan.katana'],
+              }],
+            });
+          } catch (addErr) {
+            // eslint-disable-next-line no-console
+            console.error('[ChainSelect] add Katana failed', addErr);
+            setSelectedChainId(chainId || 1);
+          }
+        } else if (switchErr?.code === 4902 && targetId === 295) {
+          try {
+            await provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x127',
+                chainName: 'Hedera',
+                rpcUrls: ['https://mainnet.hashio.io/api'],
+                nativeCurrency: { name: 'HBAR', symbol: 'HBAR', decimals: 18 },
+                blockExplorerUrls: ['https://hashscan.io/mainnet'],
+              }],
+            });
+          } catch (addErr) {
+            // eslint-disable-next-line no-console
+            console.error('[ChainSelect] add Hedera failed', addErr);
+            setSelectedChainId(chainId || 1);
+          }
+        } else if (switchErr?.code === 4902 && targetId === 48900) {
+          try {
+            await provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0xbf74',
+                chainName: 'Zircuit',
+                rpcUrls: ['https://rpc.zircuit.network'],
+                nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                blockExplorerUrls: ['https://explorer.zircuit.network'],
+              }],
+            });
+          } catch (addErr) {
+            // eslint-disable-next-line no-console
+            console.error('[ChainSelect] add Zircuit failed', addErr);
+            setSelectedChainId(chainId || 1);
+          }
+        } else if (switchErr?.code === 4902 && targetId === 747) {
+          try {
+            await provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x2EB',
+                chainName: 'Flow',
+                rpcUrls: ['https://rpc.flow.org'],
+                nativeCurrency: { name: 'FLOW', symbol: 'FLOW', decimals: 18 },
+                blockExplorerUrls: ['https://flowscan.org'],
+              }],
+            });
+          } catch (addErr) {
+            // eslint-disable-next-line no-console
+            console.error('[ChainSelect] add Flow failed', addErr);
             setSelectedChainId(chainId || 1);
           }
         } else {
@@ -230,7 +326,11 @@ export const App = () => {
       // and manage off-ramp details separately via Fern. The contract remains unchanged.
       const onChainUsePYUSD = useUSD ? false : usePYUSD;
       const beneficiaryParam = useUSD ? noahAddress : beneficiary;
-      await Noah.buildArk(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
+      if (useUSD && fernCustomerId && fernPaymentAccountId) {
+        await Noah.buildArkWithFern(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD, fernCustomerId, fernPaymentAccountId);
+      } else {
+        await Noah.buildArk(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
+      }
       setStatus("Ark built");
       await fetchArk();
     } catch (e) {
@@ -329,14 +429,27 @@ export const App = () => {
     <HelmetProvider>
       <section id="app" className="app">
         <div className="chain-selector" onClick={(e)=>e.stopPropagation()} onMouseDown={(e)=>e.stopPropagation()}>
-          <select className="form-select form-select-sm" style={{ width: 200 }} value={selectedChainId} onChange={handleSelectChain}>
-            <option value="1">Ethereum</option>
-            <option value="42161">Arbitrum</option>
-            <option value="5000">Katana (placeholder)</option>
-            <option value="88888">Chiliz</option>
-            <option value="295">Hedera (placeholder)</option>
-            <option value="4893">Zircuit (placeholder)</option>
-          </select>
+          <div className="card p-2" style={{ width: 240 }}>
+            <div className="d-flex align-items-center justify-content-between" role="button" tabIndex={0} onClick={()=>setChainMenuOpen(v=>!v)} onKeyDown={(e)=>{ if (e.key==='Enter') setChainMenuOpen(v=>!v); }}>
+              <div className="d-flex align-items-center gap-2">
+                <img src={selectedChain.logo} alt={selectedChain.name} style={{ width: 20, height: 20, borderRadius: '50%' }} />
+                <span style={{ fontWeight: 600 }}>{selectedChain.name}</span>
+              </div>
+              <span style={{ opacity: 0.6 }}>{chainMenuOpen ? '▲' : '▼'}</span>
+            </div>
+            {chainMenuOpen && (
+              <div className="mt-2" style={{ maxHeight: 240, overflowY: 'auto' }}>
+                {CHAIN_OPTIONS.map(opt => (
+                  <div key={opt.id} className={`d-flex align-items-center gap-2 p-2 ${opt.id === selectedChainId ? 'bg-light' : ''}`} role="button" tabIndex={0}
+                       onClick={async ()=>{ setChainMenuOpen(false); await selectChain(opt.id); }}
+                       onKeyDown={async (e)=>{ if (e.key==='Enter') { setChainMenuOpen(false); await selectChain(opt.id); } }}>
+                    <img src={opt.logo} alt={opt.name} style={{ width: 20, height: 20, borderRadius: '50%' }} />
+                    <span>{opt.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <Helmet>
           <meta charSet="utf-8" />
@@ -534,6 +647,16 @@ export const App = () => {
                                     const { paymentAccountId } = await Fern.createPaymentAccount({ customerId: fernCustomerId, nickname: 'Primary Bank' });
                                     setFernPaymentAccountId(paymentAccountId);
                                     setStatus(`Payment account created: ${paymentAccountId}`);
+                                    if (useUSD && noahAddress) {
+                                      try {
+                                        await Noah.setFernInfo(noahAddress, fernCustomerId, paymentAccountId);
+                                        // eslint-disable-next-line no-console
+                                        console.log('[Fern] On-chain Fern info saved');
+                                      } catch (chainErr) {
+                                        // eslint-disable-next-line no-console
+                                        console.error('[Fern] Failed to save on-chain Fern info', chainErr);
+                                      }
+                                    }
                                   } catch (e) {
                                     setStatus(e?.message || 'Fern payment account failed');
                                   }

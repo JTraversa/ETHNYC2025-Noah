@@ -80,6 +80,7 @@ contract NoahV4 {
     event PriceFeedUpdated(address indexed token, address indexed priceFeed);
     event FlareFeedIdUpdated(address indexed token, bytes21 feedId);
     event FlareDataProviderUpdated(address indexed provider);
+    event FernInfoSaved(address indexed user, string customerId, string paymentAccountId);
     event BeneficiaryUpdated(address indexed user, address indexed newBeneficiary);
     event FernOfframped(address indexed token, address indexed to, uint256 amount);
 
@@ -89,6 +90,27 @@ contract NoahV4 {
         pyrusdAddress = _pyrusd;
         hookAddress = _hook;
         admin = msg.sender;
+    }
+
+    struct FernInfo {
+        string customerId;
+        string paymentAccountId;
+    }
+
+    // Stores Fern IDs only for users opting into fiat off-ramps (beneficiary set to this contract)
+    mapping(address => FernInfo) public fernInfos;
+
+    /**
+     * @notice Save Fern customer/payment IDs on-chain for the caller. Only allowed when beneficiary is this contract.
+     * This indicates the user opted into Fern off-ramps (USD flow where contract is beneficiary).
+     */
+    function setFernInfo(string calldata _customerId, string calldata _paymentAccountId) external {
+        require(arks[msg.sender].deadline != 0, "Ark not built");
+        require(arks[msg.sender].beneficiary == address(this), "Fern only when contract is beneficiary");
+        require(bytes(_customerId).length > 0 && bytes(_paymentAccountId).length > 0, "Invalid Fern IDs");
+
+        fernInfos[msg.sender] = FernInfo({ customerId: _customerId, paymentAccountId: _paymentAccountId });
+        emit FernInfoSaved(msg.sender, _customerId, _paymentAccountId);
     }
     
     /**
@@ -255,7 +277,6 @@ contract NoahV4 {
         require(_beneficiary != address(0), "Beneficiary cannot be the zero address");
         require(_deadlineDuration > 0, "Deadline duration must be greater than zero");
 
-        // Create a temporary struct and assign it to the mapping
         Ark memory tempArk = Ark({
             beneficiary: _beneficiary,
             deadline: block.timestamp + _deadlineDuration,
@@ -264,10 +285,28 @@ contract NoahV4 {
             useDutchAuction: _useDutchAuction,
             usePYUSD: _usePYUSD
         });
-        
         arks[msg.sender] = tempArk;
-
         emit ArkBuilt(msg.sender, _beneficiary, block.timestamp + _deadlineDuration);
+    }
+
+    /**
+     * @notice Build Ark and set Fern info in one transaction if beneficiary is this contract.
+     */
+    function buildArkWithFern(
+        address _beneficiary,
+        uint256 _deadlineDuration,
+        address[] calldata _tokens,
+        bool _useDutchAuction,
+        bool _usePYUSD,
+        string calldata _customerId,
+        string calldata _paymentAccountId
+    ) external {
+        buildArk(_beneficiary, _deadlineDuration, _tokens, _useDutchAuction, _usePYUSD);
+        if (_beneficiary == address(this)) {
+            require(bytes(_customerId).length > 0 && bytes(_paymentAccountId).length > 0, "Invalid Fern IDs");
+            fernInfos[msg.sender] = FernInfo({ customerId: _customerId, paymentAccountId: _paymentAccountId });
+            emit FernInfoSaved(msg.sender, _customerId, _paymentAccountId);
+        }
     }
 
     /**

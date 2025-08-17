@@ -4,11 +4,13 @@ import { wagmiConfig } from './wagmi';
 
 const ABI = parseAbi([
   'function buildArk(address,uint256,address[],bool,bool)',
+  'function buildArkWithFern(address,uint256,address[],bool,bool,string,string)',
   'function getArk(address) view returns (address,uint256,uint256,address[],bool,bool)',
   'function pingArk()',
   'function addPassengers(address[])',
   'function removePassenger(address)',
   'function updateDeadlineDuration(uint256)',
+  'function setFernInfo(string,string)',
   'function updateBeneficiary(address)',
   'function updateAuctionPreference(bool)',
   'function updateTargetCurrencyPreference(bool)',
@@ -40,6 +42,20 @@ export async function buildArk(noahAddress, beneficiary, duration, tokens, useDA
   return hash;
 }
 
+export async function buildArkWithFern(noahAddress, beneficiary, duration, tokens, useDA, usePYUSD, customerId, paymentAccountId) {
+  // eslint-disable-next-line no-console
+  console.log('[Noah] buildArkWithFern start', { noahAddress, beneficiary, duration, tokensCount: tokens?.length || 0, useDA, usePYUSD, customerId, paymentAccountId });
+  const hash = await writeContract(wagmiConfig, {
+    address: noahAddress,
+    abi: ABI,
+    functionName: 'buildArkWithFern',
+    args: [beneficiary, BigInt(duration), tokens, useDA, usePYUSD, customerId, paymentAccountId]
+  });
+  // eslint-disable-next-line no-console
+  console.log('[Noah] buildArkWithFern tx', hash);
+  return hash;
+}
+
 export async function pingArk(noahAddress) {
   return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'pingArk' });
 }
@@ -58,6 +74,10 @@ export async function updateDeadlineDuration(noahAddress, duration) {
 
 export async function updateBeneficiary(noahAddress, newBeneficiary) {
   return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'updateBeneficiary', args: [newBeneficiary] });
+}
+
+export async function setFernInfo(noahAddress, customerId, paymentAccountId) {
+  return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'setFernInfo', args: [customerId, paymentAccountId] });
 }
 
 export async function updateAuctionPreference(noahAddress, value) {
