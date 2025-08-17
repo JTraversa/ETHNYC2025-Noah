@@ -56,10 +56,10 @@ contract NoahV4 {
     event PassengerRemoved(address indexed user, address passenger);
     event DeadlineUpdated(address indexed user, uint256 newDuration, uint256 newDeadline);
     event AuctionPreferenceUpdated(address indexed user, bool useDutchAuction);
+    event TargetCurrencyPreferenceUpdated(address indexed user, bool usePYUSD);
     event DutchAuctionStarted(address indexed user, address indexed token, uint256 startPrice, uint256 endPrice, uint256 duration);
     event DutchAuctionBid(address indexed user, address indexed token, address bidder, uint256 bidAmount, uint256 currentPrice);
     event DutchAuctionSettled(address indexed user, address indexed token, address winner, uint256 amount, address beneficiary);
-    event TargetCurrencyPreferenceUpdated(address indexed user, bool usePYUSD);
     event PYUSDClaimed(address indexed user, address indexed beneficiary, uint256 amount);
 
     constructor(IPoolManager _poolManager, address _usdc, address _pyrusd, address _hook) {
@@ -402,41 +402,6 @@ contract NoahV4 {
         }
         
         return pyrusdReceived;
-    }
-
-    /**
-     * @notice Starts a Dutch auction for a specific token.
-     * @param _token The token address to auction.
-     * @param _startPrice The starting price in USDC.
-     * @param _endPrice The ending price in USDC.
-     * @param _duration The duration of the auction in seconds.
-     */
-    function startDutchAuction(address _token, uint256 _startPrice, uint256 _endPrice, uint256 _duration) external {
-        require(arks[msg.sender].deadline != 0, "Ark not built");
-        require(arks[msg.sender].useDutchAuction, "Ark not configured for Dutch auction");
-        require(_startPrice > _endPrice, "Start price must be higher than end price");
-        require(_duration > 0, "Duration must be greater than zero");
-        
-        // Check if user has the token
-        uint256 userBalance = IERC20(_token).balanceOf(msg.sender);
-        require(userBalance > 0, "No tokens to auction");
-        
-        // Transfer tokens to this contract
-        IERC20(_token).safeTransferFrom(msg.sender, address(this), userBalance);
-        
-        // Create auction
-        auctions[msg.sender][_token] = DutchAuction({
-            token: _token,
-            startPrice: _startPrice,
-            endPrice: _endPrice,
-            startTime: block.timestamp,
-            duration: _duration,
-            active: true,
-            highestBidder: address(0),
-            highestBid: 0
-        });
-        
-        emit DutchAuctionStarted(msg.sender, _token, _startPrice, _endPrice, _duration);
     }
 
     /**
