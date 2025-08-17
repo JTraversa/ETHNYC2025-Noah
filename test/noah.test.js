@@ -30,130 +30,7 @@ describe("Noah", function () {
         // Deploy Noah
         Noah = await ethers.getContractFactory("Noah");
         noah = await Noah.deploy(await mockRouter.getAddress(), await usdc.getAddress());
-        describe("Ark Configuration", function () {
-        let token2;
-
-        beforeEach(async function () {
-            // Build an Ark for the user first
-            const tokens = [await token1.getAddress()];
-            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
-
-            // Deploy a second mock token for testing additions
-            token2 = await MockERC20.deploy("Token2", "TK2", ethers.parseEther("5000"));
-            describe("Ark Configuration", function () {
-        let token2;
-
-        beforeEach(async function () {
-            // Build an Ark for the user first
-            const tokens = [await token1.getAddress()];
-            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
-
-            // Deploy a second mock token for testing additions
-            token2 = await MockERC20.deploy("Token2", "TK2", ethers.parseEther("5000"));
-            describe("Ark Configuration", function () {
-        let token2;
-
-        beforeEach(async function () {
-            // Build an Ark for the user first
-            const tokens = [await token1.getAddress()];
-            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
-
-            // Deploy a second mock token for testing additions
-            token2 = await MockERC20.deploy("Token2", "TK2", ethers.parseEther("5000"));
-        });
-
-        it("Should allow a user to add new tokens to their Ark", async function () {
-            const newTokens = [await token2.getAddress()];
-            await noah.connect(user).addTokens(newTokens);
-
-            const ark = await noah.arks(user.address);
-            expect(ark.tokens.length).to.equal(2);
-            expect(ark.tokens[1]).to.equal(await token2.getAddress());
-        });
-
-        it("Should allow a user to remove a token from their Ark", async function () {
-            await noah.connect(user).removeToken(await token1.getAddress());
-            
-            const ark = await noah.arks(user.address);
-            expect(ark.tokens.length).to.equal(0);
-        });
-
-        it("Should allow a user to change the deadline duration", async function () {
-            const newDuration = DEADLINE_DURATION * 2; // 60 days
-            const tx = await noah.connect(user).updateDeadlineDuration(newDuration);
-            const receipt = await tx.wait();
-            const block = await ethers.provider.getBlock(receipt.blockNumber);
-            
-            const ark = await noah.arks(user.address);
-            expect(ark.deadlineDuration).to.equal(newDuration);
-            expect(ark.deadline).to.equal(block.timestamp + newDuration);
-        });
     });
-
-
-});
-
-        it("Should allow a user to add new tokens to their Ark", async function () {
-            const newTokens = [await token2.getAddress()];
-            await noah.connect(user).addTokens(newTokens);
-
-            const ark = await noah.arks(user.address);
-            expect(ark.tokens.length).to.equal(2);
-            expect(ark.tokens[1]).to.equal(await token2.getAddress());
-        });
-
-        it("Should allow a user to remove a token from their Ark", async function () {
-            await noah.connect(user).removeToken(await token1.getAddress());
-            
-            const ark = await noah.arks(user.address);
-            expect(ark.tokens.length).to.equal(0);
-        });
-
-        it("Should allow a user to change the deadline duration", async function () {
-            const newDuration = DEADLINE_DURATION * 2; // 60 days
-            const tx = await noah.connect(user).updateDeadlineDuration(newDuration);
-            const receipt = await tx.wait();
-            const block = await ethers.provider.getBlock(receipt.blockNumber);
-            
-            const ark = await noah.arks(user.address);
-            expect(ark.deadlineDuration).to.equal(newDuration);
-            expect(ark.deadline).to.equal(block.timestamp + newDuration);
-        });
-    });
-
-
-});
-
-        it("Should allow a user to add new tokens to their Ark", async function () {
-            const newTokens = [await token2.getAddress()];
-            await noah.connect(user).addTokens(newTokens);
-
-            const ark = await noah.arks(user.address);
-            expect(ark.tokens.length).to.equal(2);
-            expect(ark.tokens[1]).to.equal(await token2.getAddress());
-        });
-
-        it("Should allow a user to remove a token from their Ark", async function () {
-            await noah.connect(user).removeToken(await token1.getAddress());
-            
-            const ark = await noah.arks(user.address);
-            expect(ark.tokens.length).to.equal(0);
-        });
-
-        it("Should allow a user to change the deadline duration", async function () {
-            const newDuration = DEADLINE_DURATION * 2; // 60 days
-            const tx = await noah.connect(user).updateDeadlineDuration(newDuration);
-            const receipt = await tx.wait();
-            const block = await ethers.provider.getBlock(receipt.blockNumber);
-            
-            const ark = await noah.arks(user.address);
-            expect(ark.deadlineDuration).to.equal(newDuration);
-            expect(ark.deadline).to.equal(block.timestamp + newDuration);
-        });
-    });
-
-
-});
 
     describe("Ark Management", function () {
         it("Should allow a user to build an Ark", async function () {
@@ -179,6 +56,46 @@ describe("Noah", function () {
             await noah.connect(user).pingArk();
             const newAccount = await noah.arks(user.address);
             expect(newAccount.deadline).to.be.above(oldDeadline);
+        });
+    });
+
+    describe("Ark Configuration", function () {
+        let token2;
+
+        beforeEach(async function () {
+            // Build an Ark for the user first
+            const tokens = [await token1.getAddress()];
+            await noah.connect(user).buildArk(beneficiary.address, DEADLINE_DURATION, tokens);
+
+            // Deploy a second mock token for testing additions
+            token2 = await MockERC20.deploy("Token2", "TK2", ethers.parseEther("5000"));
+        });
+
+        it("Should allow a user to add new tokens to their Ark", async function () {
+            const newTokens = [await token2.getAddress()];
+            await noah.connect(user).addPassengers(newTokens);
+
+            const ark = await noah.getArk(user.address);
+            expect(ark[3].length).to.equal(2);
+            expect(ark[3][1]).to.equal(await token2.getAddress());
+        });
+
+        it("Should allow a user to remove a token from their Ark", async function () {
+            await noah.connect(user).removePassenger(await token1.getAddress());
+            
+            const ark = await noah.getArk(user.address);
+            expect(ark[3].length).to.equal(0);
+        });
+
+        it("Should allow a user to change the deadline duration", async function () {
+            const newDuration = DEADLINE_DURATION * 2; // 60 days
+            const tx = await noah.connect(user).updateDeadlineDuration(newDuration);
+            const receipt = await tx.wait();
+            const block = await ethers.provider.getBlock(receipt.blockNumber);
+            
+            const ark = await noah.getArk(user.address);
+            expect(ark[2]).to.equal(newDuration);
+            expect(ark[1]).to.equal(block.timestamp + newDuration);
         });
     });
 
@@ -212,8 +129,8 @@ describe("Noah", function () {
             expect(userTokenBalance).to.equal(0);
 
             // Check that the user's account is reset
-            const account = await noah.arks(user.address);
-            expect(account.deadline).to.equal(0);
+            const account = await noah.getArk(user.address);
+            expect(account[1]).to.equal(0);
         });
 
         it("Should allow user to build a new Ark after the old one is drained", async function () {
@@ -230,16 +147,16 @@ describe("Noah", function () {
             const newTokens = [await token1.getAddress()];
             await noah.connect(user).buildArk(newBeneficiary.address, DEADLINE_DURATION, newTokens);
 
-            const newAccount = await noah.arks(user.address);
-            expect(newAccount.beneficiary).to.equal(newBeneficiary.address);
-            expect(newAccount.deadline).to.not.equal(0);
+            const newAccount = await noah.getArk(user.address);
+            expect(newAccount[0]).to.equal(newBeneficiary.address);
+            expect(newAccount[1]).to.not.equal(0);
         });
 
         it("Should correctly sell tokens even if there are duplicates in the Ark", async function () {
             // Add the same token again to create a duplicate
             await noah.connect(user).addPassengers([await token1.getAddress()]);
-            const ark = await noah.arks(user.address);
-            expect(ark.tokens.length).to.equal(2); // Verify the duplicate is there
+            const ark = await noah.getArk(user.address);
+            expect(ark[3].length).to.equal(2); // Verify the duplicate is there
 
             // Fast forward time and flood
             await ethers.provider.send("evm_increaseTime", [DEADLINE_DURATION + 1]);
@@ -258,6 +175,4 @@ describe("Noah", function () {
             expect(userTokenBalance).to.equal(0);
         });
     });
-
-
 });

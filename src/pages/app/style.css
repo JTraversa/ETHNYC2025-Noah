@@ -1,6 +1,21 @@
+.noah-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin: 0 auto 8px;
+  object-fit: cover;
+  filter: grayscale(100%) brightness(0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  .noah-logo {
+    filter: none;
+  }
+}
+
 .app {
   min-height: 100vh;
-  padding-top: 120px;
+  padding-top: 70px;
   padding-bottom: 60px;
 }
 
@@ -10,7 +25,7 @@
 }
 
 .app_header {
-  text-align: center;
+  text-align: left;
   margin-bottom: 50px;
 }
 
@@ -24,6 +39,7 @@
   color: var(--text-color-2);
   font-size: 1.2rem;
   margin-bottom: 0;
+  text-align: center;
 }
 
 .app_features {
@@ -132,6 +148,30 @@
   }
 }
 
+/* Bottom-right environment info */
+.env-info {
+  position: fixed;
+  right: 12px;
+  bottom: 10px;
+  color: rgba(0,0,0,0.45);
+  font-size: 12px;
+  text-align: right;
+  pointer-events: none;
+}
+/* Fixed top-right chain selector */
+.chain-selector {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+
+@media (prefers-color-scheme: dark) {
+  .env-info { color: rgba(255,255,255,0.45); }
+}
+
 /* Dark mode adjustments */
 [data-theme="dark"] .feature_card .card,
 [data-theme="dark"] .status_card {
@@ -142,7 +182,7 @@
 /* Responsive design */
 @media (max-width: 768px) {
   .app {
-    padding-top: 100px;
+    padding-top: 60px;
   }
   
   .app_header h1 {

@@ -9,6 +9,9 @@ import AppRoutes from "./routes";
 import Headermain from "../header";
 import AnimatedCursor  from "../hooks/AnimatedCursor";
 import "./App.css";
+import { WagmiProvider } from 'wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { wagmiConfig } from "../web3/wagmi";
 
 function _ScrollToTop(props) {
   const { pathname } = useLocation();
@@ -19,16 +22,21 @@ function _ScrollToTop(props) {
 }
 const ScrollToTop = withRouter(_ScrollToTop);
 
+const queryClient = new QueryClient();
+
 export default function App() {
   return (
-    <Router basename={process.env.PUBLIC_URL}>
-      <div className="cursor__dot">
-        
-      </div>
-      <ScrollToTop>
-        <Headermain />
-        <AppRoutes />
-      </ScrollToTop>
-    </Router>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <Router basename={process.env.PUBLIC_URL}>
+          <div className="cursor__dot">
+          </div>
+          <ScrollToTop>
+            <Headermain />
+            <AppRoutes />
+          </ScrollToTop>
+        </Router>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }

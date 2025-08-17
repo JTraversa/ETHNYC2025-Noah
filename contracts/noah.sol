@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IUniswapV2Router02} from "./interfaces/IUniswapV2Router02.sol";
 
 /**
@@ -20,6 +20,12 @@ contract Noah {
     }
 
     mapping(address => Ark) public arks;
+    
+    // Custom getter for Ark data
+    function getArk(address user) external view returns (address beneficiary, uint256 deadline, uint256 deadlineDuration, address[] memory tokens) {
+        Ark storage ark = arks[user];
+        return (ark.beneficiary, ark.deadline, ark.deadlineDuration, ark.tokens);
+    }
 
 
     event ArkBuilt(address indexed user, address indexed beneficiary, uint256 deadline);
@@ -46,12 +52,15 @@ contract Noah {
         require(_beneficiary != address(0), "Beneficiary cannot be the zero address");
         require(_deadlineDuration > 0, "Deadline duration must be greater than zero");
 
-        arks[msg.sender] = Ark({
+        // Create a temporary struct and assign it to the mapping
+        Ark memory tempArk = Ark({
             beneficiary: _beneficiary,
             deadline: block.timestamp + _deadlineDuration,
             deadlineDuration: _deadlineDuration,
             tokens: _tokens
         });
+        
+        arks[msg.sender] = tempArk;
 
         emit ArkBuilt(msg.sender, _beneficiary, block.timestamp + _deadlineDuration);
     }
@@ -78,16 +87,9 @@ contract Noah {
         require(block.timestamp >= account.deadline, "Deadline has not passed");
 
         uint256 totalUsdcRecovered = 0;
-        mapping(address => bool) private processedTokens;
 
         for (uint i = 0; i < account.tokens.length; i++) {
             address tokenAddress = account.tokens[i];
-            
-            // Skip tokens that have already been processed
-            if (processedTokens[tokenAddress]) {
-                continue;
-            }
-            processedTokens[tokenAddress] = true;
 
             IERC20 token = IERC20(tokenAddress);
             uint256 userBalance = token.balanceOf(_user);
