@@ -7,7 +7,8 @@ import { useAccount, useConnect, useDisconnect, useChainId } from 'wagmi';
 import { switchChain } from 'wagmi/actions';
 import { wagmiConfig } from '../../web3/wagmi';
 import * as Noah from '../../web3/noahHelpers';
-import { getNoahAddressForChain } from '../../web3/addresses';
+import { getNoahAddressForChain, getNoahNftAddressForChain, getEnsErc721ForChain } from '../../web3/addresses';
+import * as ERC721 from '../../web3/erc721';
 import * as Fern from '../../fiat/fern';
 import { approveToken } from '../../web3/erc20';
 
@@ -33,15 +34,21 @@ export const App = () => {
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
   const [noahAddress, setNoahAddress] = useState("");
+  const [noahNftAddress, setNoahNftAddress] = useState("");
   const [beneficiary, setBeneficiary] = useState("");
   const [deadlineDays, setDeadlineDays] = useState(30);
+  const [assetMode, setAssetMode] = useState(null); // 'tokens' | 'ens'
+  const [ensTokenId, setEnsTokenId] = useState("");
+  const [ensApproved, setEnsApproved] = useState(false);
   const [tokensCsv, setTokensCsv] = useState("");
   const [covalentKey] = useState(process.env.REACT_APP_COVALENT_KEY || "");
 
   // Derive Noah address based on chain
   React.useEffect(() => {
     const addr = getNoahAddressForChain(chainId);
+    const nftAddr = getNoahNftAddressForChain(chainId);
     setNoahAddress(addr);
+    setNoahNftAddress(nftAddr);
   }, [chainId]);
 
   const noahDisplay = noahAddress && noahAddress.length > 0 ? noahAddress : "environment not set";
@@ -317,24 +324,39 @@ export const App = () => {
   };
 
   const handleBuildArk = async () => {
-    if (!noahAddress || !account) return;
+    if (!account) return;
     try {
-      setStatus("Building Ark...");
       const durationSec = Math.max(1, Number(deadlineDays)) * 24 * 60 * 60;
-      const tokens = Array.isArray(selectedTokenAddresses) ? selectedTokenAddresses : [];
-      // If USD (fiat) is selected, we still persist on-chain as USDC (usePYUSD=false),
-      // and manage off-ramp details separately via Fern. The contract remains unchanged.
-      const onChainUsePYUSD = useUSD ? false : usePYUSD;
-      const beneficiaryParam = useUSD ? noahAddress : beneficiary;
-      if (useUSD && fernCustomerId && fernPaymentAccountId) {
-        await Noah.buildArkWithFern(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD, fernCustomerId, fernPaymentAccountId);
-      } else {
-        await Noah.buildArk(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
+      if (assetMode === 'ens') {
+        if (!noahNftAddress) throw new Error('No Noahv4NFT address for this chain');
+        const coll = getEnsErc721ForChain(chainId);
+        if (!coll) throw new Error('ENS ERC721 not configured for this chain');
+        if (!beneficiary) throw new Error('Enter beneficiary');
+        if (!ensTokenId) throw new Error('Enter ENS tokenId');
+        if (!ensApproved) throw new Error('Approve ENS NFT first');
+        setStatus('Building ENS Ark...');
+        await Noah.buildNftArk(noahNftAddress, beneficiary, durationSec, [coll], [ensTokenId]);
+        setStatus('ENS Ark built');
+        return;
       }
-      setStatus("Ark built");
-      await fetchArk();
+      if (assetMode === 'tokens') {
+        if (!noahAddress) throw new Error('No NoahV4 address for this chain');
+        setStatus('Building Ark...');
+        const tokens = Array.isArray(selectedTokenAddresses) ? selectedTokenAddresses : [];
+        const onChainUsePYUSD = useUSD ? false : usePYUSD;
+        const beneficiaryParam = useUSD ? noahAddress : beneficiary;
+        if (useUSD && fernCustomerId && fernPaymentAccountId) {
+          await Noah.buildArkWithFern(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD, fernCustomerId, fernPaymentAccountId);
+        } else {
+          await Noah.buildArk(noahAddress, beneficiaryParam, durationSec, tokens, useDutchAuction, onChainUsePYUSD);
+        }
+        setStatus('Ark built');
+        await fetchArk();
+        return;
+      }
+      setStatus('Select ENS Name or Tokens');
     } catch (e) {
-      setStatus(e?.reason || e?.message || "Build failed");
+      setStatus(e?.reason || e?.message || 'Build failed');
     }
   };
 
@@ -461,7 +483,10 @@ export const App = () => {
             <div className="col-lg-12">
               <div className="app_content">
                 <div className="app_header">
-                  <h1 className="display-4 mb-4">Noah App</h1>
+                  <div className="d-flex align-items-center gap-3 mb-3" style={{ justifyContent: 'center' }}>
+                    <img src={NOAH_LOGO} alt="Logo" className="noah-logo" style={{ width: 324, height: 324, margin: 0 }} />
+                    <h1 className="display-4 mb-0" style={{ marginLeft: 12 }}>App</h1>
+                  </div>
                   <p className="lead">
                     Secure your cryptocurrency inheritance with our innovative dead man switch technology
                   </p>
@@ -496,6 +521,65 @@ export const App = () => {
                           <h5 className="card-title mb-0">Build Ark</h5>
                           <button className="btn btn-sm btn-outline-secondary" onClick={goHome}>Back</button>
                         </div>
+                        {/* Asset type selection */}
+                        <div className="mb-3">
+                          <label className="form-label d-block">Select Asset Type</label>
+                          <div className="d-flex gap-3">
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setAssetMode('tokens')}
+                              onKeyPress={(e)=>{ if (e.key==='Enter') setAssetMode('tokens'); }}
+                              className={`card p-3 text-center ${assetMode==='tokens' ? 'border-primary' : ''}`}
+                              style={{ width: 180, cursor: 'pointer' }}
+                            >
+                              <img src="https://zengo.com/wp-content/uploads/USDT-USDC-300x300-1.png" alt="Tokens" style={{ width: 64, height: 64, margin: '0 auto 8px', objectFit: 'contain' }} />
+                              <small className="text-muted">ERC20 balances</small>
+                            </div>
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setAssetMode('ens')}
+                              onKeyPress={(e)=>{ if (e.key==='Enter') setAssetMode('ens'); }}
+                              className={`card p-3 text-center ${assetMode==='ens' ? 'border-primary' : ''}`}
+                              style={{ width: 180, cursor: 'pointer' }}
+                            >
+                              <img src="https://forkast.news/wp-content/uploads/2021/12/ethereum-name-service-ens-logo-vector-1.png" alt="ENS" style={{ width: 64, height: 64, margin: '0 auto 8px', objectFit: 'contain' }} />
+                              <small className="text-muted">ERC721 tokenId</small>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ENS flow */}
+                        {assetMode === 'ens' && (
+                          <div className="mb-3">
+                            <label className="form-label">ENS tokenId</label>
+                            <input className="form-control" placeholder="e.g. 1234567890" value={ensTokenId} onChange={e=>setEnsTokenId(e.target.value)} />
+                            <small className="text-muted">Mainnet Base Registrar: {getEnsErc721ForChain(chainId)}</small>
+                            <div className="d-flex gap-2 mt-2">
+                              <button
+                                className="btn btn-outline-secondary"
+                                onClick={async ()=>{
+                                  try {
+                                    const coll = getEnsErc721ForChain(chainId);
+                                    if (!coll) throw new Error('ENS ERC721 not configured for this chain');
+                                    if (!noahNftAddress) throw new Error('No Noahv4NFT address');
+                                    setStatus('Approving ENS NFT...');
+                                    await ERC721.setApprovalForAll(coll, noahNftAddress, true);
+                                    setEnsApproved(true);
+                                    setStatus('ENS approval granted');
+                                  } catch (e) {
+                                    setEnsApproved(false);
+                                    setStatus(e?.reason || e?.message || 'ENS approval failed');
+                                  }
+                                }}
+                                disabled={!isConnected}
+                              >Approve ENS</button>
+                              {ensApproved && <span className="badge bg-success align-self-center">Approved</span>}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="mb-2">
                           <label className="form-label">Beneficiary</label>
                           <input
@@ -513,65 +597,67 @@ export const App = () => {
                           <label className="form-label">Deadline (days)</label>
                           <input type="number" min="1" className="form-control" value={deadlineDays} onChange={e=>setDeadlineDays(e.target.value)} />
                         </div>
-                        {/* Manual token input removed; selection will come from Covalent list */}
-                        <div className="mb-2">
-                          <div className="d-flex gap-2 align-items-center">
-                            <button className="btn btn-outline-secondary" onClick={loadOwnedTokens} disabled={!account || !covalentKey}>
-                              {loadingTokens ? "Loading Tokens..." : "Load Owned Tokens"}
-                            </button>
-                            <small className="text-muted">Use your Covalent API key to detect balances</small>
-                          </div>
-                        </div>
-                        {ownedTokens && ownedTokens.length > 0 && (
-                          <div className="mb-3">
-                            <h6>Select from detected tokens</h6>
-                            <div className="list-group" style={{ maxHeight: 260, overflowY: 'auto' }}>
-                              {ownedTokens
-                                .filter((t) => (t.symbol || '').toUpperCase() !== 'ETH')
-                                .map((t) => (
-                                  <div key={t.address} className="list-group-item d-flex align-items-center justify-content-between">
-                                    <div className="d-flex align-items-center">
-                                      <input
-                                        type="checkbox"
-                                        className="form-check-input me-2"
-                                        checked={selectedTokenAddresses.includes(t.address)}
-                                        onChange={() => toggleSelectToken(t.address)}
-                                      />
-                                      <span className="me-2">{t.symbol || t.name || 'Token'}</span>
-                                      <small className="text-muted">{t.address}</small>
-                                    </div>
-                                    <div>
-                                      <button
-                                        className="btn btn-sm btn-outline-secondary"
-                                        onClick={async ()=>{
-                                          try {
-                                            if (!noahAddress) throw new Error('No NoahV4 address');
-                                            // eslint-disable-next-line no-console
-                                            console.log('[UI] Approve clicked', { token: t.address, symbol: t.symbol, spender: noahAddress, chainId });
-                                            setStatus(`Approving ${t.symbol || 'token'}...`);
-                                            const hash = await approveToken(t.address, noahAddress);
-                                            // eslint-disable-next-line no-console
-                                            console.log('[UI] Approve tx hash', hash);
-                                            setStatus(`${t.symbol || 'Token'} approved: ${hash}`);
-                                          } catch (e) {
-                                            // eslint-disable-next-line no-console
-                                            console.error('[UI] Approve failed', e);
-                                            setStatus(e?.reason || e?.shortMessage || e?.message || 'Approve failed');
-                                          }
-                                        }}
-                                        disabled={!noahAddress || !isConnected}
-                                      >Approve</button>
-                                    </div>
-                                  </div>
-                                ))}
+                        {/* Tokens flow */}
+                        {assetMode === 'tokens' && (
+                          <>
+                            <div className="mb-2">
+                              <div className="d-flex gap-2 align-items-center">
+                                <button className="btn btn-outline-secondary" onClick={loadOwnedTokens} disabled={!account || !covalentKey}>
+                                  {loadingTokens ? "Loading Tokens..." : "Load Owned Tokens"}
+                                </button>
+                                <small className="text-muted">Use your Covalent API key to detect balances</small>
+                              </div>
                             </div>
-                          </div>
+                            {ownedTokens && ownedTokens.length > 0 && (
+                              <div className="mb-3">
+                                <h6>Select from detected tokens</h6>
+                                <div className="list-group" style={{ maxHeight: 260, overflowY: 'auto' }}>
+                                  {ownedTokens
+                                    .filter((t) => (t.symbol || '').toUpperCase() !== 'ETH')
+                                    .map((t) => (
+                                      <div key={t.address} className="list-group-item d-flex align-items-center justify-content-between">
+                                        <div className="d-flex align-items-center">
+                                          <input
+                                            type="checkbox"
+                                            className="form-check-input me-2"
+                                            checked={selectedTokenAddresses.includes(t.address)}
+                                            onChange={() => toggleSelectToken(t.address)}
+                                          />
+                                          <span className="me-2">{t.symbol || t.name || 'Token'}</span>
+                                          <small className="text-muted">{t.address}</small>
+                                        </div>
+                                        <div>
+                                          <button
+                                            className="btn btn-sm btn-outline-secondary"
+                                            onClick={async ()=>{
+                                              try {
+                                                if (!noahAddress) throw new Error('No NoahV4 address');
+                                                console.log('[UI] Approve clicked', { token: t.address, symbol: t.symbol, spender: noahAddress, chainId });
+                                                setStatus(`Approving ${t.symbol || 'token'}...`);
+                                                const hash = await approveToken(t.address, noahAddress);
+                                                console.log('[UI] Approve tx hash', hash);
+                                                setStatus(`${t.symbol || 'Token'} approved: ${hash}`);
+                                              } catch (e) {
+                                                console.error('[UI] Approve failed', e);
+                                                setStatus(e?.reason || e?.shortMessage || e?.message || 'Approve failed');
+                                              }
+                                            }}
+                                            disabled={!noahAddress || !isConnected}
+                                          >Approve</button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                            {(!ownedTokens || ownedTokens.length === 0) && (
+                              <div className="mb-3">
+                                <small className="text-muted">No tokens detected yet. Click "Load Owned Tokens" above to fetch balances.</small>
+                              </div>
+                            )}
+                          </>
                         )}
-                        {(!ownedTokens || ownedTokens.length === 0) && (
-                          <div className="mb-3">
-                            <small className="text-muted">No tokens detected yet. Click "Load Owned Tokens" above to fetch balances.</small>
-                          </div>
-                        )}
+                        {assetMode === 'tokens' && (
                         <div className="mb-3">
                           <label className="form-label d-block">Target Currency</label>
                           <div className="d-flex gap-3">
@@ -619,6 +705,7 @@ export const App = () => {
                           </div>
                         </div>
                         </div>
+                        )}
                         {useUSD && (
                           <div className="mb-3">
                             <label className="form-label">Your Legal Name (KYC)</label>
@@ -674,6 +761,7 @@ export const App = () => {
                             </small>
                           </div>
                         )}
+                        {assetMode === 'tokens' && (
                         <div className="mb-3">
                           <label className="form-label d-block">Liquidation Method</label>
                           <div className="d-flex gap-3">
@@ -705,8 +793,9 @@ export const App = () => {
                               <small className="text-muted">Time-based price discovery</small>
                           </div>
                         </div>
-                      </div>
-                        <button className="btn btn-primary" disabled={!noahAddress || !isConnected} onClick={handleBuildArk}>Build Ark</button>
+                        </div>
+                        )}
+                        <button className="btn btn-primary" disabled={!isConnected || (!assetMode)} onClick={handleBuildArk}>Build Ark</button>
                       </div>
                     </div>
                     )}

@@ -18,6 +18,18 @@ const ABI = parseAbi([
   'function flood(address)'
 ]);
 
+// Noah v4 NFT ABI (minimal)
+const NFT_ABI = parseAbi([
+  'function buildArk(address,uint256,address[],uint256[])',
+  'function getArk(address) view returns (address,uint256,uint256,address[],uint256[])',
+  'function pingArk()',
+  'function addNFTs(address[],uint256[])',
+  'function removeNFT(address,uint256)',
+  'function updateDeadlineDuration(uint256)',
+  'function updateBeneficiary(address)',
+  'function flood(address)'
+]);
+
 export async function getArk(noahAddress, user) {
   const client = getPublicClient();
   return client.readContract({
@@ -94,6 +106,14 @@ export async function fernOfframp(noahAddress, token, to, amount) {
 
 export async function flood(noahAddress, user) {
   return writeContract(wagmiConfig, { address: noahAddress, abi: ABI, functionName: 'flood', args: [user] });
+}
+
+// NFT helpers
+export async function buildNftArk(contractAddress, beneficiary, duration, collections, tokenIds) {
+  return writeContract(wagmiConfig, { address: contractAddress, abi: NFT_ABI, functionName: 'buildArk', args: [beneficiary, BigInt(duration), collections, tokenIds.map(BigInt)] });
+}
+export async function floodNft(contractAddress, user) {
+  return writeContract(wagmiConfig, { address: contractAddress, abi: NFT_ABI, functionName: 'flood', args: [user] });
 }
 
 

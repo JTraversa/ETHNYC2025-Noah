@@ -4,7 +4,7 @@
   border-radius: 50%;
   margin: 0 auto 8px;
   object-fit: cover;
-  filter: grayscale(100%);
+  filter: grayscale(100%) brightness(0.6);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,7 +15,7 @@
 
 .app {
   min-height: 100vh;
-  padding-top: 120px;
+  padding-top: 70px;
   padding-bottom: 60px;
 }
 
@@ -25,7 +25,7 @@
 }
 
 .app_header {
-  text-align: center;
+  text-align: left;
   margin-bottom: 50px;
 }
 
@@ -39,6 +39,7 @@
   color: var(--text-color-2);
   font-size: 1.2rem;
   margin-bottom: 0;
+  text-align: center;
 }
 
 .app_features {
@@ -181,7 +182,7 @@
 /* Responsive design */
 @media (max-width: 768px) {
   .app {
-    padding-top: 100px;
+    padding-top: 60px;
   }
   
   .app_header h1 {
