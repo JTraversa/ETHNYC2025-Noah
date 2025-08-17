@@ -83,6 +83,7 @@ export const App = () => {
     { id: 295, name: 'Hedera', logo: 'https://assets.coingecko.com/coins/images/3688/large/hbar.png?1637045634' },
     { id: 48900, name: 'Zircuit', logo: 'https://docs.zircuit.com/~gitbook/image?url=https%3A%2F%2F1825535913-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Forganizations%252FFAE3Bv5wcSjxEUOFI86x%252Fsites%252Fsite_zN0g8%252Ficon%252FBtQKlRXrMfIyrjxUHMS7%252Fzircuit-inverted-icon.svg%3Falt%3Dmedia%26token%3D3d38060e-00aa-47e6-89c8-6e6092166658&width=32&dpr=4&quality=100&sign=b528a02a&sv=2' },
     { id: 747, name: 'Flow', logo: 'https://cdn.prod.website-files.com/5f734f4dbd95382f4fdfa0ea/67e1750c3eb15026e1ca6618_Flow_Icon_Color.svg' },
+    { id: 1301, name: 'Unichain', logo: 'https://assets.coingecko.com/coins/images/12504/large/uniswap-uni.png?1600306604' },
   ];
   const selectedChain = CHAIN_OPTIONS.find(c => c.id === selectedChainId) || CHAIN_OPTIONS[0];
 
@@ -113,7 +114,7 @@ export const App = () => {
   const selectChain = async (targetId) => {
     setSelectedChainId(targetId);
     try {
-      if (targetId === 1 || targetId === 42161 || targetId === 88888 || targetId === 747474 || targetId === 295 || targetId === 48900 || targetId === 747) {
+      if (targetId === 1 || targetId === 42161 || targetId === 88888 || targetId === 747474 || targetId === 295 || targetId === 48900 || targetId === 747 || targetId === 1301) {
         // First try wagmi's switch
         await switchChain(wagmiConfig, { chainId: targetId });
       } else {
@@ -132,7 +133,7 @@ export const App = () => {
         setSelectedChainId(chainId || 1);
         return;
       }
-      const hexMap = { 1: '0x1', 42161: '0xa4b1', 88888: '0x15b38', 747474: '0xb6ef2', 295: '0x127', 48900: '0xbf74', 747: '0x2EB' };
+      const hexMap = { 1: '0x1', 42161: '0xa4b1', 88888: '0x15b38', 747474: '0xb6ef2', 295: '0x127', 48900: '0xbf74', 747: '0x2EB', 1301: '0x515' };
       const hexId = hexMap[targetId];
       try {
         await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexId }] });
@@ -238,6 +239,22 @@ export const App = () => {
           } catch (addErr) {
             // eslint-disable-next-line no-console
             console.error('[ChainSelect] add Flow failed', addErr);
+            setSelectedChainId(chainId || 1);
+          }
+        } else if (switchErr?.code === 4902 && targetId === 1301) {
+          try {
+            await provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x515',
+                chainName: 'Unichain',
+                rpcUrls: ['https://rpc.unichain.org'],
+                nativeCurrency: { name: 'UNI', symbol: 'UNI', decimals: 18 },
+                blockExplorerUrls: ['https://explorer.unichain.org'],
+              }],
+            });
+          } catch (addErr) {
+            console.error('[ChainSelect] add Unichain failed', addErr);
             setSelectedChainId(chainId || 1);
           }
         } else {
