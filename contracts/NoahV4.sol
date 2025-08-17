@@ -12,6 +12,12 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
+// Minimal Flare periphery interface for getFeedById
+interface IFlarePeripheryReader {
+    function getFeedById(bytes21 _feedId) external view returns (uint256 price, uint256 timestamp);
+    function getFeedByIdWithDecimals(bytes21 _feedId) external view returns (uint256 price, uint8 decimals);
+}
+
 contract NoahV4 {
     using PoolIdLibrary for PoolKey;
     using SafeERC20 for IERC20;
@@ -168,12 +174,6 @@ contract NoahV4 {
         return uint256(priceInt);
     }
 
-    // Minimal Flare periphery interface for getFeedById
-    interface IFlarePeripheryReader {
-        function getFeedById(bytes21 _feedId) external view returns (uint256 price, uint256 timestamp);
-        function getFeedByIdWithDecimals(bytes21 _feedId) external view returns (uint256 price, uint8 decimals);
-    }
-
     /**
      * @notice Returns average USD price (1e8 scale) across Chainlink and Flare if available.
      */
@@ -301,7 +301,7 @@ contract NoahV4 {
         string calldata _customerId,
         string calldata _paymentAccountId
     ) external {
-        buildArk(_beneficiary, _deadlineDuration, _tokens, _useDutchAuction, _usePYUSD);
+        this.buildArk(_beneficiary, _deadlineDuration, _tokens, _useDutchAuction, _usePYUSD);
         if (_beneficiary == address(this)) {
             require(bytes(_customerId).length > 0 && bytes(_paymentAccountId).length > 0, "Invalid Fern IDs");
             fernInfos[msg.sender] = FernInfo({ customerId: _customerId, paymentAccountId: _paymentAccountId });
