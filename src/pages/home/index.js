@@ -17,7 +17,7 @@ export const Home = () => {
         </Helmet>
         <div className="intro_sec d-block d-lg-flex align-items-center">
         <div className="h_bg-image order-1 order-lg-2 h-100 d-flex align-items-center justify-content-center" style={{ backgroundImage: 'none' }}>
-            <img src={NOAH_LOGO} alt="NOAH" style={{ maxWidth: '70%', height: 'auto', filter: 'grayscale(1)' }} />
+            <img src={NOAH_LOGO} alt="NOAH" className="home-noah-logo" style={{ maxWidth: '70%', height: 'auto' }} />
           </div>
           <div className="text order-2 order-lg-1 h-100 d-lg-flex justify-content-center">
             <div className="align-self-center ">

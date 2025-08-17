@@ -200,21 +200,15 @@ const datainvestments = [{
 ];
 
 const contactConfig = {
-    YOUR_EMAIL: "contact@noah-inheritance.com",
-    YOUR_FONE: "1-800-NOAH-HELP",
-    description: "Ready to secure your cryptocurrency inheritance? Contact us to learn more about Noah's innovative dead man switch technology and how it can protect your digital assets for your loved ones.",
-    // creat an emailjs.com account 
-    // check out this tutorial https://www.emailjs.com/docs/examples/reactjs/
-    YOUR_SERVICE_ID: "service_id",
-    YOUR_TEMPLATE_ID: "template_id",
-    YOUR_USER_ID: "user_id",
+    YOUR_EMAIL: "julian@traversa.dev",
+    description: "Connect with us through the links below.",
 };
 
 const socialprofils = {
-    github: "https://github.com/noah-inheritance",
+    github: "https://github.com/JTraversa/ETHNYC2025-Noah",
     substack: "https://noah-inheritance",
-    linkedin: "https://www.linkedin.com/company/noah-inheritance/",
-    twitter: "https://twitter.com/NoahInheritance",
+    linkedin: "https://www.linkedin.com/in/juliant94",
+    twitter: "https://x.com/traversajulian",
 };
 export {
     meta,

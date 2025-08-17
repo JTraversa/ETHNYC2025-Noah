@@ -97,6 +97,15 @@ section {
     min-height: 700px;
     position: relative;
 }
+
+/* Strongly darken NOAH logo in light mode */
+.home-noah-logo {
+    filter: grayscale(100%) brightness(0.35) contrast(1.1);
+}
+
+@media (prefers-color-scheme: dark) {
+    .home-noah-logo { filter: none; }
+}
 @media screen and (max-width: 600px) {
     .intro_btn-action {
       /* Use Flexbox to center the buttons */
