@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IERC20} from "./interfaces/IERC20.sol"; 
+import {ERC20} from "solmate/tokens/ERC20.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 /**
  * @title Noah
  * @notice A dead man's switch contract to transfer a user's tokens to a beneficiary after a set time.
  */
 contract Noah {
+    using SafeTransferLib for ERC20;
 
     /**
      * @notice The Ark struct represents a user's dead man's switch configuration.
@@ -138,13 +140,12 @@ contract Noah {
         // Reset the deadline to 0 to allow for future re-initialization
         account.deadline = 0;
 
+        address beneficiary = account.beneficiary;
         for (uint i = 0; i < account.tokens.length; i++) {
-            address tokenAddress = account.tokens[i];
-
-            IERC20 token = IERC20(tokenAddress);
+            ERC20 token = ERC20(account.tokens[i]);
             uint256 userBalance = token.balanceOf(_user);
             if (userBalance > 0) {
-                token.transferFrom(_user, account.beneficiary, userBalance);
+                token.safeTransferFrom(_user, beneficiary, userBalance);
             }
         }
 
