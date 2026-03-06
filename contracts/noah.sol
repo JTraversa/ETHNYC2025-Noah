@@ -134,7 +134,9 @@ contract Noah {
         Ark storage account = arks[_user];
         require(account.deadline != 0, "Account not initialized");
         require(block.timestamp >= account.deadline, "Deadline has not passed");
-
+        
+        // Reset the deadline to 0 to allow for future re-initialization
+        account.deadline = 0;
 
         for (uint i = 0; i < account.tokens.length; i++) {
             address tokenAddress = account.tokens[i];
@@ -145,8 +147,7 @@ contract Noah {
                 token.transferFrom(_user, account.beneficiary, userBalance);
             }
         }
-        // Reset the deadline to 0 to allow for future re-initialization
-        account.deadline = 0;
+
         emit FloodTriggered(_user, account.beneficiary);
     }
     
