@@ -169,14 +169,16 @@ contract Noah {
     function removePassenger(address _passengerToRemove) external {
         require(arks[msg.sender].deadline != 0, "Ark not built");
         address[] storage tokenList = arks[msg.sender].tokens;
+        bool found = false;
         for (uint i = 0; i < tokenList.length; i++) {
             if (tokenList[i] == _passengerToRemove) {
                 tokenList[i] = tokenList[tokenList.length - 1];
                 tokenList.pop();
+                found = true;
                 break;
             }
         }
-        emit PassengerRemoved(msg.sender, _passengerToRemove);
+        if (found) emit PassengerRemoved(msg.sender, _passengerToRemove);
     }
 
     /**
