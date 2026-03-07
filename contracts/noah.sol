@@ -82,6 +82,13 @@ contract Noah {
      */
     event ArkDestroyed(address indexed user);
 
+    /**
+     * @notice Emitted when the beneficiary is updated.
+     * @param user The address of the user who updated the beneficiary.
+     * @param newBeneficiary The new beneficiary address.
+     */
+    event BeneficiaryUpdated(address indexed user, address indexed newBeneficiary);
+
 
     constructor() {
     }
@@ -199,6 +206,17 @@ contract Noah {
      * @notice Destroys the caller's Ark by setting the deadline to 0.
      * @dev This allows the user to create a new Ark after destruction.
      */
+    /**
+     * @notice Updates the beneficiary for the caller's Ark.
+     * @param _newBeneficiary The new beneficiary address.
+     */
+    function updateBeneficiary(address _newBeneficiary) external {
+        require(arks[msg.sender].deadline != 0, "Ark not built");
+        require(_newBeneficiary != address(0), "Beneficiary cannot be the zero address");
+        arks[msg.sender].beneficiary = _newBeneficiary;
+        emit BeneficiaryUpdated(msg.sender, _newBeneficiary);
+    }
+
     function destroyArk() external {
         require(arks[msg.sender].deadline != 0, "Ark not built");
         arks[msg.sender].deadline = 0;
