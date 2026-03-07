@@ -203,10 +203,6 @@ contract Noah {
     }
 
     /**
-     * @notice Destroys the caller's Ark by setting the deadline to 0.
-     * @dev This allows the user to create a new Ark after destruction.
-     */
-    /**
      * @notice Updates the beneficiary for the caller's Ark.
      * @param _newBeneficiary The new beneficiary address.
      */
@@ -217,6 +213,10 @@ contract Noah {
         emit BeneficiaryUpdated(msg.sender, _newBeneficiary);
     }
 
+    /**
+     * @notice Destroys the caller's Ark by setting the deadline to 0.
+     * @dev This allows the user to create a new Ark after destruction.
+     */
     function destroyArk() external {
         require(arks[msg.sender].deadline != 0, "Ark not built");
         arks[msg.sender].deadline = 0;
