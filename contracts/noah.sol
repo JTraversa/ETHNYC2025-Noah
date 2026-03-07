@@ -108,7 +108,6 @@ contract Noah {
     function buildArk(address _beneficiary, uint256 _deadlineDuration, address[] calldata _tokens) external {
         require(arks[msg.sender].deadline == 0, "Account already initialized");
         require(_beneficiary != address(0), "Beneficiary cannot be the zero address");
-        require(_deadlineDuration > 0, "Deadline duration must be greater than zero");
 
         // Create a temporary struct and assign it to the mapping
         Ark memory tempArk = Ark({
@@ -196,7 +195,6 @@ contract Noah {
      */
     function updateDeadlineDuration(uint256 _newDuration) external {
         require(arks[msg.sender].deadline != 0, "Ark not built");
-        require(_newDuration > 0, "Duration must be greater than zero");
         arks[msg.sender].deadlineDuration = _newDuration;
         arks[msg.sender].deadline = block.timestamp + _newDuration;
         emit DeadlineUpdated(msg.sender, _newDuration, arks[msg.sender].deadline);
@@ -208,7 +206,6 @@ contract Noah {
      */
     function updateBeneficiary(address _newBeneficiary) external {
         require(arks[msg.sender].deadline != 0, "Ark not built");
-        require(_newBeneficiary != address(0), "Beneficiary cannot be the zero address");
         arks[msg.sender].beneficiary = _newBeneficiary;
         emit BeneficiaryUpdated(msg.sender, _newBeneficiary);
     }
