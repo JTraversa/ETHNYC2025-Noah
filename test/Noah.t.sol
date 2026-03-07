@@ -23,6 +23,7 @@ contract NoahTest is Test {
 
     event PassengerRemoved(address indexed user, address passenger);
     event PassengersAdded(address indexed user, address[] newPassengers);
+    event BeneficiaryUpdated(address indexed user, address indexed newBeneficiary);
 
     function setUp() public {
         noah = new Noah();
@@ -353,6 +354,86 @@ contract NoahTest is Test {
         assertEq(MockERC20(tokenAddrs[3]).balanceOf(beneficiary1), INITIAL_BALANCE);
         assertEq(MockERC20(tokenAddrs[4]).balanceOf(beneficiary1), INITIAL_BALANCE);
     }
+
+    // ===== updateBeneficiary Tests =====
+
+    function test_UpdateBeneficiary_Success() public {
+        address[] memory tokenAddrs = _createTokens(3);
+        address newBeneficiary = makeAddr("newBeneficiary");
+
+        vm.startPrank(user1);
+        noah.buildArk(beneficiary1, DEADLINE_DURATION, tokenAddrs);
+
+        vm.expectEmit(true, true, false, true);
+        emit BeneficiaryUpdated(user1, newBeneficiary);
+
+        noah.updateBeneficiary(newBeneficiary);
+        vm.stopPrank();
+
+        (address ben,,,) = noah.getArk(user1);
+        assertEq(ben, newBeneficiary, "Beneficiary should be updated");
+    }
+
+    function test_UpdateBeneficiary_PreservesTokensAndDeadline() public {
+        address[] memory tokenAddrs = _createTokens(3);
+        address newBeneficiary = makeAddr("newBeneficiary");
+
+        vm.startPrank(user1);
+        noah.buildArk(beneficiary1, DEADLINE_DURATION, tokenAddrs);
+
+        (, uint256 deadlineBefore, uint256 durationBefore,) = noah.getArk(user1);
+
+        noah.updateBeneficiary(newBeneficiary);
+        vm.stopPrank();
+
+        (, uint256 deadlineAfter, uint256 durationAfter, address[] memory tokensAfter) = noah.getArk(user1);
+        assertEq(deadlineAfter, deadlineBefore, "Deadline should not change");
+        assertEq(durationAfter, durationBefore, "Duration should not change");
+        assertEq(tokensAfter.length, tokenAddrs.length, "Tokens should not change");
+    }
+
+    function test_UpdateBeneficiary_RevertWhen_ArkNotBuilt() public {
+        vm.prank(user1);
+        vm.expectRevert("Ark not built");
+        noah.updateBeneficiary(makeAddr("someone"));
+    }
+
+    function test_UpdateBeneficiary_RevertWhen_ZeroAddress() public {
+        address[] memory tokenAddrs = _createTokens(1);
+
+        vm.startPrank(user1);
+        noah.buildArk(beneficiary1, DEADLINE_DURATION, tokenAddrs);
+
+        vm.expectRevert("Beneficiary cannot be the zero address");
+        noah.updateBeneficiary(address(0));
+        vm.stopPrank();
+    }
+
+    function test_UpdateBeneficiary_ThenFlood() public {
+        address[] memory tokenAddrs = _createTokens(2);
+        address newBeneficiary = makeAddr("newBeneficiary");
+
+        vm.startPrank(user1);
+        noah.buildArk(beneficiary1, DEADLINE_DURATION, tokenAddrs);
+
+        for (uint256 i = 0; i < tokenAddrs.length; i++) {
+            MockERC20(tokenAddrs[i]).approve(address(noah), type(uint256).max);
+        }
+
+        noah.updateBeneficiary(newBeneficiary);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + DEADLINE_DURATION + 1);
+        noah.flood(user1);
+
+        // Tokens should go to the new beneficiary, not the original
+        assertEq(MockERC20(tokenAddrs[0]).balanceOf(newBeneficiary), INITIAL_BALANCE);
+        assertEq(MockERC20(tokenAddrs[1]).balanceOf(newBeneficiary), INITIAL_BALANCE);
+        assertEq(MockERC20(tokenAddrs[0]).balanceOf(beneficiary1), 0);
+        assertEq(MockERC20(tokenAddrs[1]).balanceOf(beneficiary1), 0);
+    }
+
+    // ===== Fuzz Tests =====
 
     function testFuzz_RemovePassenger_AnyPosition(uint8 tokenCount, uint8 removeIndex) public {
         // Bound inputs to reasonable values
