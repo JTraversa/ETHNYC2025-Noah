@@ -5,6 +5,7 @@
 /out
 /cache
 /broadcast
+/deployments
 
 # dependencies
 /node_modules
