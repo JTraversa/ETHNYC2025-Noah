@@ -86,6 +86,7 @@ const eventIcons = {
   FloodTriggered: '🌊',
   DeadlineUpdated: '⏱️',
   ArkDestroyed: '💥',
+  BeneficiaryUpdated: '👤',
 };
 
 const eventColors = {
@@ -96,6 +97,7 @@ const eventColors = {
   FloodTriggered: 'from-blue-400 to-cyan-500',
   DeadlineUpdated: 'from-violet-400 to-purple-500',
   ArkDestroyed: 'from-red-400 to-orange-500',
+  BeneficiaryUpdated: 'from-emerald-400 to-teal-500',
 };
 
 const eventLabels = {
@@ -106,6 +108,7 @@ const eventLabels = {
   FloodTriggered: 'Flood Triggered',
   DeadlineUpdated: 'Duration Updated',
   ArkDestroyed: 'Ark Destroyed',
+  BeneficiaryUpdated: 'Beneficiary Updated',
 };
 
 const chainExplorers = {
@@ -221,6 +224,10 @@ function getEventDetails(event) {
       return { text: 'Duration updated', tokens: null };
     case 'ArkDestroyed':
       return { text: 'Ark has been destroyed', tokens: null };
+    case 'BeneficiaryUpdated':
+      const newBen = event.event_data?.new_beneficiary || event.event_data?.newBeneficiary;
+      const newBenStr = newBen ? `${newBen.slice(0, 6)}...${newBen.slice(-4)}` : 'Unknown';
+      return { text: `Beneficiary changed to ${newBenStr}`, tokens: null };
     default:
       return { text: '', tokens: null };
   }

@@ -334,6 +334,7 @@ function CreateTab({ onArkCreated }) {
     const pollInterval = setInterval(async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/arks/${address}`);
+        if (!response.ok) return; // Backend not ready yet, keep polling
         const data = await response.json();
 
         // If ark found for this address on current chain, creation is complete

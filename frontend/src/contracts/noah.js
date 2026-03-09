@@ -132,6 +132,21 @@ export const NOAH_ABI = [
       { name: 'user', type: 'address', indexed: true },
     ],
   },
+  {
+    type: 'function',
+    name: 'updateBeneficiary',
+    inputs: [{ name: '_newBeneficiary', type: 'address' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    name: 'BeneficiaryUpdated',
+    inputs: [
+      { name: 'user', type: 'address', indexed: true },
+      { name: 'newBeneficiary', type: 'address', indexed: true },
+    ],
+  },
 ];
 
 // Mock USDC for local testing
