@@ -113,6 +113,7 @@ const eventLabels = {
 
 const chainExplorers = {
   11155111: 'https://sepolia.etherscan.io',
+  421614: 'https://sepolia.arbiscan.io',
   42161: 'https://arbiscan.io',
   31337: null, // Local chain
 };

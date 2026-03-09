@@ -15,6 +15,20 @@ const sepoliaCustom = {
   testnet: true,
 };
 
+// Arbitrum Sepolia testnet
+const arbitrumSepolia = {
+  id: 421614,
+  name: 'Arbitrum Sepolia',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://sepolia-rollup.arbitrum.io/rpc'] },
+  },
+  blockExplorers: {
+    default: { name: 'Arbiscan', url: 'https://sepolia.arbiscan.io' },
+  },
+  testnet: true,
+};
+
 // Local Anvil chain for testing
 const anvil = {
   id: 31337,
@@ -29,5 +43,5 @@ const anvil = {
 export const config = getDefaultConfig({
   appName: 'Noah',
   projectId: 'noah-app', // WalletConnect project ID - get one at https://cloud.walletconnect.com
-  chains: [sepoliaCustom, anvil, arbitrum],
+  chains: [sepoliaCustom, arbitrumSepolia, anvil, arbitrum],
 });
