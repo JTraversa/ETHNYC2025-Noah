@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient, useChainId, useWalletClient } from 'wagmi';
 import { useWriteContracts, useCallsStatus, useCapabilities } from 'wagmi/experimental';
 import { formatUnits, maxUint256, encodeFunctionData } from 'viem';
@@ -354,6 +355,18 @@ function CreateTab({ onArkCreated }) {
     return () => clearInterval(pollInterval);
   }, [creationConfirmedOnChain, address, chainId, onArkCreated]);
 
+  // Blur page content when any modal is open
+  const anyModalOpen = showCreationPendingModal || showApprovalModal;
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (anyModalOpen) {
+      root?.classList.add('blur-content');
+    } else {
+      root?.classList.remove('blur-content');
+    }
+    return () => root?.classList.remove('blur-content');
+  }, [anyModalOpen]);
+
   const toggleToken = (addr) => {
     setSelectedTokens((prev) =>
       prev.includes(addr)
@@ -484,10 +497,10 @@ function CreateTab({ onArkCreated }) {
   return (
     <>
     {/* Parallel Approval Progress Modal */}
-    {showApprovalModal && approvalTxs.length > 0 && (
+    {showApprovalModal && approvalTxs.length > 0 && createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50" />
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+        <div className="absolute inset-0" onClick={() => { setShowApprovalModal(false); setApprovalTxs([]); if (approvalPollingRef.current) clearInterval(approvalPollingRef.current); }} />
+        <div className="relative bg-white rounded-2xl max-w-sm w-full p-6">
           <button
             onClick={() => {
               setShowApprovalModal(false);
@@ -557,19 +570,18 @@ function CreateTab({ onArkCreated }) {
             )}
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     )}
 
     {/* Creation Pending Modal */}
-    {showCreationPendingModal && (
+    {showCreationPendingModal && createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="absolute inset-0 bg-black/50"
+          className="absolute inset-0"
           onClick={() => setShowCreationPendingModal(false)}
         />
-        <div className="relative max-w-sm w-full">
-          <div className="absolute -inset-3 bg-black/[0.06] rounded-3xl blur-xl" />
-          <div className="relative bg-white rounded-2xl max-w-sm w-full p-6">
+        <div className="relative bg-white rounded-2xl max-w-sm w-full p-6">
           <button
             onClick={() => setShowCreationPendingModal(false)}
             className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
@@ -602,8 +614,8 @@ function CreateTab({ onArkCreated }) {
             </p>
           </div>
         </div>
-        </div>
-      </div>
+      </div>,
+      document.body
     )}
 
     <form onSubmit={handleSubmit} className="space-y-6">

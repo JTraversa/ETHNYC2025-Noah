@@ -189,6 +189,12 @@ body {
   }
 }
 
+/* Blur page content when modal is open */
+.blur-content {
+  filter: blur(4px);
+  transition: filter 0.2s ease;
+}
+
 /* Dropdown expand animation */
 .dropdown-enter {
   animation: dropdownEnter 0.2s ease-out forwards;
