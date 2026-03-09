@@ -189,22 +189,6 @@ body {
   }
 }
 
-/* Soft fading shadow for pending modals — uses a blurred pseudo-element
-   so the glow naturally follows the card's rounded corners */
-.shadow-soft {
-  position: relative;
-}
-
-.shadow-soft::before {
-  content: '';
-  position: absolute;
-  inset: 6px;
-  background: rgba(0, 0, 0, 0.07);
-  border-radius: inherit;
-  filter: blur(25px);
-  z-index: -1;
-}
-
 /* Dropdown expand animation */
 .dropdown-enter {
   animation: dropdownEnter 0.2s ease-out forwards;
