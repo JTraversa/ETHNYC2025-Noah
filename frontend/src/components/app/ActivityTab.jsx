@@ -554,19 +554,55 @@ function ActivityTab() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              onClick={() => handlePageChange(page)}
-              className={`w-8 h-8 text-sm font-medium rounded-lg transition-all ${
-                page === currentPage
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md shadow-indigo-500/25'
-                  : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600'
-              }`}
-            >
-              {page}
-            </button>
-          ))}
+          {(() => {
+            const maxVisible = 5;
+            const pages = [];
+            let start, end;
+
+            if (totalPages <= maxVisible) {
+              start = 1;
+              end = totalPages;
+            } else {
+              start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+              end = start + maxVisible - 1;
+              if (end > totalPages) {
+                end = totalPages;
+                start = end - maxVisible + 1;
+              }
+            }
+
+            if (start > 1) {
+              pages.push(
+                <button key={1} onClick={() => handlePageChange(1)} className="w-8 h-8 text-sm font-medium rounded-lg transition-all text-slate-600 hover:bg-indigo-50 hover:text-indigo-600">1</button>
+              );
+              if (start > 2) pages.push(<span key="start-dots" className="w-6 text-center text-slate-400 text-sm">...</span>);
+            }
+
+            for (let p = start; p <= end; p++) {
+              pages.push(
+                <button
+                  key={p}
+                  onClick={() => handlePageChange(p)}
+                  className={`w-8 h-8 text-sm font-medium rounded-lg transition-all ${
+                    p === currentPage
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md shadow-indigo-500/25'
+                      : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600'
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            }
+
+            if (end < totalPages) {
+              if (end < totalPages - 1) pages.push(<span key="end-dots" className="w-6 text-center text-slate-400 text-sm">...</span>);
+              pages.push(
+                <button key={totalPages} onClick={() => handlePageChange(totalPages)} className="w-8 h-8 text-sm font-medium rounded-lg transition-all text-slate-600 hover:bg-indigo-50 hover:text-indigo-600">{totalPages}</button>
+              );
+            }
+
+            return pages;
+          })()}
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
