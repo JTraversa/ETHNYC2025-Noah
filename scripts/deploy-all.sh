@@ -1,6 +1,6 @@
 #!/bin/bash
 # Deploy Noah to all configured chains
-# Usage: ./scripts/deploy-all.sh [--no-verify]
+# Usage: ./scripts/deploy-all.sh [--no-verify] [--testnets] [--chain <name>]
 
 set -e
 
@@ -10,16 +10,124 @@ export PATH="$PATH:$HOME/.foundry/bin"
 # Load .env
 source .env
 
-# Chain configs: name|rpc_url
-CHAINS=(
-  "Sepolia|$SEPOLIA_RPC_URL"
-  "Arbitrum Sepolia|$ARBITRUM_SEPOLIA_RPC_URL"
+# --- Parse flags ---
+VERIFY_FLAG="--verify"
+TESTNETS=false
+SINGLE_CHAIN=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-verify) VERIFY_FLAG=""; shift ;;
+    --testnets)  TESTNETS=true; shift ;;
+    --chain)     SINGLE_CHAIN="$2"; shift 2 ;;
+    *)           echo "Unknown flag: $1"; exit 1 ;;
+  esac
+done
+
+# --- Mainnet chains: name|rpc_url|chain_id ---
+MAINNET_CHAINS=(
+  # ETH-native (6)
+  "Ethereum|https://eth.llamarpc.com|1"
+  "Arbitrum|https://arb1.arbitrum.io/rpc|42161"
+  "Base|https://mainnet.base.org|8453"
+  "Optimism|https://mainnet.optimism.io|10"
+  "Linea|https://rpc.linea.build|59144"
+  "Scroll|https://rpc.scroll.io|534352"
+  # Non-ETH-native (15)
+  "Polygon|https://polygon.publicnode.com|137"
+  "BSC|https://bsc-dataseed.binance.org|56"
+  "Avalanche|https://api.avax.network/ext/bc/C/rpc|43114"
+  "Sonic|https://rpc.soniclabs.com|146"
+  "Berachain|https://rpc.berachain.com|80094"
+  "Mantle|https://rpc.mantle.xyz|5000"
+  "Flare|https://flare-api.flare.network/ext/C/rpc|14"
+  "Flow|https://mainnet.evm.nodes.onflow.org|747"
+  "Monad|https://rpc.monad.xyz|143"
+  "MegaETH|https://mainnet.megaeth.com/rpc|4326"
+  "Stable|https://api-stable-mainnet.n.dwellir.com|988"
+  "Cronos|https://evm.cronos.org|25"
+  "Gnosis|https://rpc.gnosischain.com|100"
+  "Celo|https://forno.celo.org|42220"
+  "Sei|https://evm-rpc.sei-apis.com|1329"
 )
 
-VERIFY_FLAG="--verify"
-if [[ "$1" == "--no-verify" ]]; then
-  VERIFY_FLAG=""
+TESTNET_CHAINS=(
+  "Sepolia|${SEPOLIA_RPC_URL:-}|11155111"
+  "Arbitrum Sepolia|${ARBITRUM_SEPOLIA_RPC_URL:-}|421614"
+)
+
+# Select which chains to deploy
+if [[ "$TESTNETS" == true ]]; then
+  CHAINS=("${TESTNET_CHAINS[@]}")
+else
+  CHAINS=("${MAINNET_CHAINS[@]}")
 fi
+
+# Filter to single chain if --chain specified
+if [[ -n "$SINGLE_CHAIN" ]]; then
+  FILTERED=()
+  for chain in "${CHAINS[@]}"; do
+    IFS='|' read -r name rpc chain_id <<< "$chain"
+    if [[ "${name,,}" == "${SINGLE_CHAIN,,}" ]]; then
+      FILTERED+=("$chain")
+    fi
+  done
+  if [[ ${#FILTERED[@]} -eq 0 ]]; then
+    echo "Error: chain '$SINGLE_CHAIN' not found"
+    exit 1
+  fi
+  CHAINS=("${FILTERED[@]}")
+fi
+
+# --- Pre-flight: test all RPCs in parallel ---
+echo "=== Pre-flight RPC Check ==="
+echo ""
+
+RPC_CHECK_DIR=$(mktemp -d)
+trap "rm -rf $RPC_CHECK_DIR" EXIT
+
+for i in "${!CHAINS[@]}"; do
+  IFS='|' read -r name rpc chain_id <<< "${CHAINS[$i]}"
+  [[ -z "$rpc" ]] && continue
+  (
+    BLOCK=$(cast block-number --rpc-url "$rpc" 2>/dev/null)
+    CHAIN_REPORTED=$(cast chain-id --rpc-url "$rpc" 2>/dev/null)
+    if [[ -n "$BLOCK" && "$CHAIN_REPORTED" == "$chain_id" ]]; then
+      echo "OK|$BLOCK" > "$RPC_CHECK_DIR/$i"
+    elif [[ -n "$BLOCK" ]]; then
+      echo "MISMATCH|expected $chain_id got $CHAIN_REPORTED" > "$RPC_CHECK_DIR/$i"
+    else
+      echo "FAIL|unreachable" > "$RPC_CHECK_DIR/$i"
+    fi
+  ) &
+done
+wait
+
+RPC_FAILURES=0
+for i in "${!CHAINS[@]}"; do
+  IFS='|' read -r name rpc chain_id <<< "${CHAINS[$i]}"
+  [[ -z "$rpc" ]] && continue
+
+  if [[ -f "$RPC_CHECK_DIR/$i" ]]; then
+    IFS='|' read -r status detail < "$RPC_CHECK_DIR/$i"
+  else
+    status="FAIL"; detail="no response"
+  fi
+
+  case "$status" in
+    OK)       printf "  %-14s chain %-6s block %-12s OK\n" "$name" "$chain_id" "$detail" ;;
+    MISMATCH) printf "  %-14s CHAIN ID MISMATCH (%s)\n" "$name" "$detail"; ((RPC_FAILURES++)) ;;
+    FAIL)     printf "  %-14s FAILED (%s)\n" "$name" "$detail"; ((RPC_FAILURES++)) ;;
+  esac
+done
+
+echo ""
+if [[ $RPC_FAILURES -gt 0 ]]; then
+  echo "$RPC_FAILURES RPC(s) failed pre-flight check. Aborting."
+  exit 1
+fi
+echo "All RPCs healthy."
+echo ""
 
 # Create logs directory with timestamped subfolder
 TIMESTAMP=$(date -u +"%Y-%m-%d_%H-%M-%S")
@@ -34,7 +142,7 @@ PIDS=()
 ENTRIES=()
 
 for chain in "${CHAINS[@]}"; do
-  IFS='|' read -r name rpc <<< "$chain"
+  IFS='|' read -r name rpc chain_id <<< "$chain"
 
   if [[ -z "$rpc" ]]; then
     echo "[$name] Skipping — no RPC URL configured"
@@ -44,7 +152,7 @@ for chain in "${CHAINS[@]}"; do
   # Sanitize name for filename
   safe_name=$(echo "$name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
   logfile="$LOG_DIR/$safe_name.log"
-  ENTRIES+=("$name|$logfile")
+  ENTRIES+=("$name|$logfile|$chain_id")
 
   echo "[$name] Starting deployment..."
   forge script scripts/Deploy.s.sol:Deploy \
@@ -62,11 +170,14 @@ echo ""
 FAILED=0
 SUMMARY=""
 
+SUCCESSFUL_CHAINS=()
+
 for i in "${!PIDS[@]}"; do
-  IFS='|' read -r name logfile <<< "${ENTRIES[$i]}"
+  IFS='|' read -r name logfile chain_id <<< "${ENTRIES[$i]}"
   if wait "${PIDS[$i]}"; then
     STATUS="SUCCESS"
     echo "[$name] Deployed successfully"
+    SUCCESSFUL_CHAINS+=("$name|$chain_id")
   else
     STATUS="FAILED"
     echo "[$name] FAILED"
@@ -107,6 +218,38 @@ done)
 EOF
 
 echo "Summary written to $SUMMARY_FILE"
+echo ""
+
+# --- Collect full broadcast data from forge artifacts ---
+DEPLOYS_FILE="$LOG_DIR/deployments.json"
+echo "{" > "$DEPLOYS_FILE"
+FIRST=true
+
+for entry in "${SUCCESSFUL_CHAINS[@]}"; do
+  IFS='|' read -r name chain_id <<< "$entry"
+
+  BROADCAST_FILE="broadcast/Deploy.s.sol/$chain_id/run-latest.json"
+
+  if [[ ! -f "$BROADCAST_FILE" ]]; then
+    echo "  Warning: no broadcast file for $name (chain $chain_id)"
+    continue
+  fi
+
+  if [[ "$FIRST" == true ]]; then
+    FIRST=false
+  else
+    echo "," >> "$DEPLOYS_FILE"
+  fi
+
+  # Embed the entire broadcast JSON under the chain name key
+  printf '  "%s": ' "$name" >> "$DEPLOYS_FILE"
+  cat "$BROADCAST_FILE" >> "$DEPLOYS_FILE"
+done
+
+echo "" >> "$DEPLOYS_FILE"
+echo "}" >> "$DEPLOYS_FILE"
+
+echo "Full deployment data written to $DEPLOYS_FILE"
 echo ""
 
 if [[ $FAILED -eq 0 ]]; then
