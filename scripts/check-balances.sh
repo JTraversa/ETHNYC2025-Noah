@@ -47,7 +47,7 @@ CHAINS=(
   "Flow|https://mainnet.evm.nodes.onflow.org|FLOW|0.5"
   "Monad|https://rpc.monad.xyz|MON|1"
   "MegaETH|https://mainnet.megaeth.com/rpc|MEGA|0.01"
-  "Stable|https://api-stable-mainnet.n.dwellir.com|gUSDT|0.1"
+  "Stable|https://rpc.stable.xyz|gUSDT|0.1"
   "Cronos|https://evm.cronos.org|CRO|1"
   "Gnosis|https://rpc.gnosischain.com|xDAI|0.1"
   "Celo|https://forno.celo.org|CELO|0.5"
@@ -62,35 +62,32 @@ trap "rm -rf $RESULTS_DIR" EXIT
 # pathUSD TIP-20 address on Tempo (fees paid in stablecoins, not native token)
 TEMPO_PATHUSD="0x20c0000000000000000000000000000000000000"
 
-# Query all chains in parallel
+# Query all chains (sequential for Windows/Git Bash compatibility)
 for i in "${!CHAINS[@]}"; do
   IFS='|' read -r name rpc symbol recommended <<< "${CHAINS[$i]}"
-  (
-    if [[ "$name" == "Tempo" ]]; then
-      # Tempo has no native gas token — check pathUSD (TIP-20, 6 decimals) balance instead
-      balance_raw=$(cast call "$TEMPO_PATHUSD" "balanceOf(address)(uint256)" "$WALLET" --rpc-url "$rpc" 2>/dev/null || echo "ERROR")
-      if [[ "$balance_raw" == "ERROR" ]]; then
-        echo "$name|$symbol|ERROR|$recommended|UNREACHABLE" > "$RESULTS_DIR/$i"
-      else
-        balance=$(awk "BEGIN { printf \"%.6f\", $balance_raw / 1000000 }")
-        status=$(awk "BEGIN { print ($balance >= $recommended) ? \"FUNDED\" : ($balance > 0) ? \"LOW\" : \"EMPTY\" }")
-        echo "$name|$symbol|$balance|$recommended|$status" > "$RESULTS_DIR/$i"
-      fi
-    else
-      balance_wei=$(cast balance "$WALLET" --rpc-url "$rpc" 2>/dev/null || echo "ERROR")
-      if [[ "$balance_wei" == "ERROR" ]]; then
-        echo "$name|$symbol|ERROR|$recommended|UNREACHABLE" > "$RESULTS_DIR/$i"
-      else
-        balance_eth=$(cast from-wei "$balance_wei" 2>/dev/null || echo "0")
-        # Compare: funded if balance >= recommended (using awk for float comparison)
-        status=$(awk "BEGIN { print ($balance_eth >= $recommended) ? \"FUNDED\" : ($balance_eth > 0) ? \"LOW\" : \"EMPTY\" }")
-        echo "$name|$symbol|$balance_eth|$recommended|$status" > "$RESULTS_DIR/$i"
-      fi
-    fi
-  ) &
-done
 
-wait
+  if [[ "$name" == "Tempo" ]]; then
+    # Tempo has no native gas token — check pathUSD (TIP-20, 6 decimals) balance instead
+    balance_raw=$(cast call "$TEMPO_PATHUSD" "balanceOf(address)(uint256)" "$WALLET" --rpc-url "$rpc" 2>/dev/null | awk '{print $1}' || echo "ERROR")
+    if [[ "$balance_raw" == "ERROR" ]]; then
+      echo "$name|$symbol|ERROR|$recommended|UNREACHABLE" > "$RESULTS_DIR/$i"
+    else
+      balance=$(awk "BEGIN { printf \"%.6f\", $balance_raw / 1000000 }")
+      status=$(awk "BEGIN { print ($balance >= $recommended) ? \"FUNDED\" : ($balance > 0) ? \"LOW\" : \"EMPTY\" }")
+      echo "$name|$symbol|$balance|$recommended|$status" > "$RESULTS_DIR/$i"
+    fi
+  else
+    balance_wei=$(cast balance "$WALLET" --rpc-url "$rpc" 2>/dev/null || echo "ERROR")
+    if [[ "$balance_wei" == "ERROR" ]]; then
+      echo "$name|$symbol|ERROR|$recommended|UNREACHABLE" > "$RESULTS_DIR/$i"
+    else
+      balance_eth=$(cast from-wei "$balance_wei" 2>/dev/null || echo "0")
+      # Compare: funded if balance >= recommended (using awk for float comparison)
+      status=$(awk "BEGIN { print ($balance_eth >= $recommended) ? \"FUNDED\" : ($balance_eth > 0) ? \"LOW\" : \"EMPTY\" }")
+      echo "$name|$symbol|$balance_eth|$recommended|$status" > "$RESULTS_DIR/$i"
+    fi
+  fi
+done
 
 # Print results table
 printf "%-14s %-6s %16s %12s   %s\n" "CHAIN" "TOKEN" "BALANCE" "RECOMMENDED" "STATUS"
@@ -107,10 +104,10 @@ for i in "${!CHAINS[@]}"; do
     IFS='|' read -r name symbol balance recommended status < "$RESULTS_DIR/$i"
 
     case "$status" in
-      FUNDED)      marker="OK"; ((FUNDED++)) ;;
-      LOW)         marker="LOW"; ((LOW++)) ;;
-      EMPTY)       marker="--"; ((EMPTY++)) ;;
-      UNREACHABLE) marker="ERR"; ((ERRORS++)) ;;
+      FUNDED)      marker="OK"; FUNDED=$((FUNDED+1)) ;;
+      LOW)         marker="LOW"; LOW=$((LOW+1)) ;;
+      EMPTY)       marker="--"; EMPTY=$((EMPTY+1)) ;;
+      UNREACHABLE) marker="ERR"; ERRORS=$((ERRORS+1)) ;;
     esac
 
     if [[ "$status" == "UNREACHABLE" ]]; then

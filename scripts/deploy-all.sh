@@ -3,7 +3,7 @@
 # Usage: ./scripts/deploy-all.sh [--no-verify] [--testnets] [--chain <name>]
 #
 # Deploys standard EVM chains first, then swaps to tempo-foundry for Tempo,
-# then restores standard foundry.
+# then restores standard foundry. Verifies via Sourcify by default.
 
 set -e
 
@@ -14,51 +14,55 @@ export PATH="$PATH:$HOME/.foundry/bin"
 source .env
 
 # --- Parse flags ---
-VERIFY_FLAG="--verify"
+SKIP_VERIFY=false
 TESTNETS=false
 SINGLE_CHAIN=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --no-verify) VERIFY_FLAG=""; shift ;;
+    --no-verify) SKIP_VERIFY=true; shift ;;
     --testnets)  TESTNETS=true; shift ;;
     --chain)     SINGLE_CHAIN="$2"; shift 2 ;;
     *)           echo "Unknown flag: $1"; exit 1 ;;
   esac
 done
 
-# --- Mainnet chains: name|rpc_url|chain_id ---
+# --- Chain configs: name|rpc_url|chain_id|verifier|verifier_url ---
+# Verifier types: sourcify, etherscan, blockscout, none
+# For etherscan-family, verifier_url is the API endpoint
+# Sourcify needs no API key; etherscan needs ETHERSCAN_API_KEY in .env
+
 MAINNET_CHAINS=(
   # ETH-native (6)
-  "Ethereum|https://eth.llamarpc.com|1"
-  "Arbitrum|https://arb1.arbitrum.io/rpc|42161"
-  "Base|https://mainnet.base.org|8453"
-  "Optimism|https://mainnet.optimism.io|10"
-  "Linea|https://rpc.linea.build|59144"
-  "Scroll|https://rpc.scroll.io|534352"
+  "Ethereum|https://eth.llamarpc.com|1|etherscan|https://api.etherscan.io/api"
+  "Arbitrum|https://arb1.arbitrum.io/rpc|42161|etherscan|https://api.arbiscan.io/api"
+  "Base|https://mainnet.base.org|8453|etherscan|https://api.basescan.org/api"
+  "Optimism|https://mainnet.optimism.io|10|etherscan|https://api-optimistic.etherscan.io/api"
+  "Linea|https://rpc.linea.build|59144|etherscan|https://api.lineascan.build/api"
+  "Scroll|https://rpc.scroll.io|534352|etherscan|https://api.scrollscan.com/api"
   # Non-ETH-native (15)
-  "Polygon|https://polygon.publicnode.com|137"
-  "BSC|https://bsc-dataseed.binance.org|56"
-  "Avalanche|https://api.avax.network/ext/bc/C/rpc|43114"
-  "Sonic|https://rpc.soniclabs.com|146"
-  "Berachain|https://rpc.berachain.com|80094"
-  "Mantle|https://rpc.mantle.xyz|5000"
-  "Flare|https://flare-api.flare.network/ext/C/rpc|14"
-  "Flow|https://mainnet.evm.nodes.onflow.org|747"
-  "Monad|https://rpc.monad.xyz|143"
-  "MegaETH|https://mainnet.megaeth.com/rpc|4326"
-  "Stable|https://api-stable-mainnet.n.dwellir.com|988"
-  "Cronos|https://evm.cronos.org|25"
-  "Gnosis|https://rpc.gnosischain.com|100"
-  "Celo|https://forno.celo.org|42220"
-  "Sei|https://evm-rpc.sei-apis.com|1329"
+  "Polygon|https://polygon.publicnode.com|137|etherscan|https://api.polygonscan.com/api"
+  "BSC|https://bsc-dataseed.binance.org|56|etherscan|https://api.bscscan.com/api"
+  "Avalanche|https://api.avax.network/ext/bc/C/rpc|43114|etherscan|https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api"
+  "Sonic|https://rpc.soniclabs.com|146|etherscan|https://api.sonicscan.org/api"
+  "Berachain|https://rpc.berachain.com|80094|etherscan|https://api.berascan.com/api"
+  "Mantle|https://rpc.mantle.xyz|5000|etherscan|https://api.mantlescan.xyz/api"
+  "Flare|https://flare-api.flare.network/ext/C/rpc|14|blockscout|https://flare-explorer.flare.network/api"
+  "Flow|https://mainnet.evm.nodes.onflow.org|747|blockscout|https://evm.flowscan.io/api"
+  "Monad|https://rpc.monad.xyz|143|sourcify|"
+  "MegaETH|https://mainnet.megaeth.com/rpc|4326|etherscan|https://api-mega.etherscan.io/api"
+  "Stable|https://rpc.stable.xyz|988|blockscout|https://stablescan.xyz/api"
+  "Cronos|https://evm.cronos.org|25|blockscout|https://explorer-api.cronos.org/mainnet/api"
+  "Gnosis|https://rpc.gnosischain.com|100|etherscan|https://api.gnosisscan.io/api"
+  "Celo|https://forno.celo.org|42220|etherscan|https://api.celoscan.io/api"
+  "Sei|https://evm-rpc.sei-apis.com|1329|blockscout|https://seitrace.com/pacific-1/api"
   # Stablecoin-native (requires tempo-foundry fork)
-  "Tempo|https://rpc.presto.tempo.xyz|4217"
+  "Tempo|https://rpc.presto.tempo.xyz|4217|sourcify|"
 )
 
 TESTNET_CHAINS=(
-  "Sepolia|${SEPOLIA_RPC_URL:-}|11155111"
-  "Arbitrum Sepolia|${ARBITRUM_SEPOLIA_RPC_URL:-}|421614"
+  "Sepolia|${SEPOLIA_RPC_URL:-}|11155111|etherscan|https://api-sepolia.etherscan.io/api"
+  "Arbitrum Sepolia|${ARBITRUM_SEPOLIA_RPC_URL:-}|421614|etherscan|https://api-sepolia.arbiscan.io/api"
 )
 
 # Select which chains to deploy
@@ -72,7 +76,7 @@ fi
 if [[ -n "$SINGLE_CHAIN" ]]; then
   FILTERED=()
   for chain in "${CHAINS[@]}"; do
-    IFS='|' read -r name rpc chain_id <<< "$chain"
+    IFS='|' read -r name rpc chain_id verifier verifier_url <<< "$chain"
     if [[ "${name,,}" == "${SINGLE_CHAIN,,}" ]]; then
       FILTERED+=("$chain")
     fi
@@ -91,7 +95,7 @@ TEMPO_FEE_TOKEN="0x20c0000000000000000000000000000000000000"
 STANDARD_CHAINS=()
 TEMPO_CHAINS=()
 for chain in "${CHAINS[@]}"; do
-  IFS='|' read -r name rpc chain_id <<< "$chain"
+  IFS='|' read -r name rpc chain_id verifier verifier_url <<< "$chain"
   if [[ "$chain_id" == "$TEMPO_CHAIN_ID" ]]; then
     TEMPO_CHAINS+=("$chain")
   else
@@ -107,7 +111,7 @@ RPC_CHECK_DIR=$(mktemp -d)
 trap "rm -rf $RPC_CHECK_DIR" EXIT
 
 for i in "${!CHAINS[@]}"; do
-  IFS='|' read -r name rpc chain_id <<< "${CHAINS[$i]}"
+  IFS='|' read -r name rpc chain_id verifier verifier_url <<< "${CHAINS[$i]}"
   [[ -z "$rpc" ]] && continue
   (
     BLOCK=$(cast block-number --rpc-url "$rpc" 2>/dev/null)
@@ -125,7 +129,7 @@ wait
 
 RPC_FAILURES=0
 for i in "${!CHAINS[@]}"; do
-  IFS='|' read -r name rpc chain_id <<< "${CHAINS[$i]}"
+  IFS='|' read -r name rpc chain_id verifier verifier_url <<< "${CHAINS[$i]}"
   [[ -z "$rpc" ]] && continue
 
   if [[ -f "$RPC_CHECK_DIR/$i" ]]; then
@@ -136,8 +140,8 @@ for i in "${!CHAINS[@]}"; do
 
   case "$status" in
     OK)       printf "  %-14s chain %-6s block %-12s OK\n" "$name" "$chain_id" "$detail" ;;
-    MISMATCH) printf "  %-14s CHAIN ID MISMATCH (%s)\n" "$name" "$detail"; ((RPC_FAILURES++)) ;;
-    FAIL)     printf "  %-14s FAILED (%s)\n" "$name" "$detail"; ((RPC_FAILURES++)) ;;
+    MISMATCH) printf "  %-14s CHAIN ID MISMATCH (%s)\n" "$name" "$detail"; RPC_FAILURES=$((RPC_FAILURES+1)) ;;
+    FAIL)     printf "  %-14s FAILED (%s)\n" "$name" "$detail"; RPC_FAILURES=$((RPC_FAILURES+1)) ;;
   esac
 done
 
@@ -159,6 +163,16 @@ SUMMARY=""
 SUCCESSFUL_CHAINS=()
 ALL_ENTRIES=()
 
+# --- Verification strategy ---
+# Deploy script uses Sourcify for all chains (free, no API keys needed).
+# If Sourcify doesn't cover a chain, run verify-contracts.sh post-deploy
+# to retry with chain-specific etherscan/blockscout verifiers.
+if [[ "$SKIP_VERIFY" == true ]]; then
+  VERIFY_FLAGS=""
+else
+  VERIFY_FLAGS="--verify --verifier sourcify"
+fi
+
 # --- Helper: deploy a batch of chains in parallel ---
 deploy_batch() {
   local -n batch=$1
@@ -168,7 +182,7 @@ deploy_batch() {
   local ENTRIES=()
 
   for chain in "${batch[@]}"; do
-    IFS='|' read -r name rpc chain_id <<< "$chain"
+    IFS='|' read -r name rpc chain_id verifier verifier_url <<< "$chain"
 
     if [[ -z "$rpc" ]]; then
       echo "[$name] Skipping — no RPC URL configured"
@@ -184,7 +198,7 @@ deploy_batch() {
     forge script scripts/Deploy.s.sol:Deploy \
       --rpc-url "$rpc" \
       --broadcast \
-      $VERIFY_FLAG \
+      $VERIFY_FLAGS \
       $extra_flags \
       > "$logfile" 2>&1 &
     PIDS+=($!)
@@ -230,13 +244,14 @@ if [[ ${#TEMPO_CHAINS[@]} -gt 0 ]]; then
   echo ""
 
   echo "Switching to tempo-foundry..."
-  foundryup -n tempo 2>&1 | tail -1
+  rm -rf "$HOME/.foundry/versions/nightly"
+  foundryup -n tempo 2>&1 | grep -E "^foundryup: use" || true
   echo ""
 
   deploy_batch TEMPO_CHAINS "--tempo.fee-token $TEMPO_FEE_TOKEN"
 
   echo "Restoring standard foundry..."
-  foundryup 2>&1 | tail -1
+  foundryup 2>&1 | grep -E "^foundryup: use" || true
   echo ""
 fi
 

@@ -53,7 +53,7 @@ const stableChain = {
   name: 'Stable',
   nativeCurrency: { name: 'gUSDT', symbol: 'gUSDT', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://api-stable-mainnet.n.dwellir.com'] },
+    default: { http: ['https://rpc.stable.xyz'] },
   },
   blockExplorers: {
     default: { name: 'StableScan', url: 'https://stablescan.xyz' },

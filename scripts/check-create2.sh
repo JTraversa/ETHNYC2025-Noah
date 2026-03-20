@@ -30,7 +30,7 @@ CHAINS=(
   "Flow|https://mainnet.evm.nodes.onflow.org|747"
   "Monad|https://rpc.monad.xyz|143"
   "MegaETH|https://mainnet.megaeth.com/rpc|4326"
-  "Stable|https://api-stable-mainnet.n.dwellir.com|988"
+  "Stable|https://rpc.stable.xyz|988"
   "Cronos|https://evm.cronos.org|25"
   "Gnosis|https://rpc.gnosischain.com|100"
   "Celo|https://forno.celo.org|42220"
@@ -38,10 +38,25 @@ CHAINS=(
   "Tempo|https://rpc.presto.tempo.xyz|4217"
 )
 
+TEMPO_CHAIN_ID="4217"
+
+# Split into standard and Tempo chains
+STANDARD_CHAINS=()
+TEMPO_CHAINS=()
+for i in "${!CHAINS[@]}"; do
+  IFS='|' read -r name rpc chain_id <<< "${CHAINS[$i]}"
+  if [[ "$chain_id" == "$TEMPO_CHAIN_ID" ]]; then
+    TEMPO_CHAINS+=("$i")
+  else
+    STANDARD_CHAINS+=("$i")
+  fi
+done
+
 RESULTS_DIR=$(mktemp -d)
 trap "rm -rf $RESULTS_DIR" EXIT
 
-for i in "${!CHAINS[@]}"; do
+# Check standard chains in parallel with current foundry
+for i in "${STANDARD_CHAINS[@]}"; do
   IFS='|' read -r name rpc chain_id <<< "${CHAINS[$i]}"
   (
     code=$(cast code "$CREATE2_FACTORY" --rpc-url "$rpc" 2>/dev/null || echo "ERROR")
@@ -56,6 +71,36 @@ for i in "${!CHAINS[@]}"; do
 done
 wait
 
+# Check Tempo — try tempo-foundry fork, fall back to standard cast (read-only calls work either way)
+if [[ ${#TEMPO_CHAINS[@]} -gt 0 ]]; then
+  rm -rf "$HOME/.foundry/versions/nightly"
+  if foundryup -n tempo > /dev/null 2>&1; then
+    TEMPO_SWAPPED=true
+    echo "(using tempo-foundry for Tempo RPC)"
+  else
+    TEMPO_SWAPPED=false
+    echo "(tempo-foundry not available, using standard cast for read-only check)"
+  fi
+
+  for i in "${TEMPO_CHAINS[@]}"; do
+    IFS='|' read -r name rpc chain_id <<< "${CHAINS[$i]}"
+    code=$(cast code "$CREATE2_FACTORY" --rpc-url "$rpc" 2>/dev/null || echo "ERROR")
+    if [[ "$code" == "ERROR" ]]; then
+      echo "RPC_FAIL" > "$RESULTS_DIR/$i"
+    elif [[ "$code" == "0x" || -z "$code" ]]; then
+      echo "MISSING" > "$RESULTS_DIR/$i"
+    else
+      echo "OK" > "$RESULTS_DIR/$i"
+    fi
+  done
+
+  if [[ "$TEMPO_SWAPPED" == true ]]; then
+    foundryup > /dev/null 2>&1 || true
+    echo "(restored standard foundry)"
+  fi
+  echo ""
+fi
+
 printf "%-14s %-8s %s\n" "CHAIN" "ID" "STATUS"
 printf "%-14s %-8s %s\n" "--------------" "--------" "----------"
 
@@ -68,9 +113,9 @@ for i in "${!CHAINS[@]}"; do
   status=$(cat "$RESULTS_DIR/$i" 2>/dev/null || echo "RPC_FAIL")
 
   case "$status" in
-    OK)       printf "%-14s %-8s OK\n" "$name" "$chain_id"; ((OK++)) ;;
-    MISSING)  printf "%-14s %-8s MISSING — CREATE2 deploy will fail\n" "$name" "$chain_id"; ((MISSING++)) ;;
-    RPC_FAIL) printf "%-14s %-8s RPC ERROR\n" "$name" "$chain_id"; ((ERRORS++)) ;;
+    OK)       printf "%-14s %-8s OK\n" "$name" "$chain_id"; OK=$((OK+1)) ;;
+    MISSING)  printf "%-14s %-8s MISSING — CREATE2 deploy will fail\n" "$name" "$chain_id"; MISSING=$((MISSING+1)) ;;
+    RPC_FAIL) printf "%-14s %-8s RPC ERROR\n" "$name" "$chain_id"; ERRORS=$((ERRORS+1)) ;;
   esac
 done
 
