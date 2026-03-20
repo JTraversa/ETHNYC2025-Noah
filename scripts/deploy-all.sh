@@ -1,6 +1,9 @@
 #!/bin/bash
 # Deploy Noah to all configured chains
 # Usage: ./scripts/deploy-all.sh [--no-verify] [--testnets] [--chain <name>]
+#
+# Deploys standard EVM chains first, then swaps to tempo-foundry for Tempo,
+# then restores standard foundry.
 
 set -e
 
@@ -49,6 +52,8 @@ MAINNET_CHAINS=(
   "Gnosis|https://rpc.gnosischain.com|100"
   "Celo|https://forno.celo.org|42220"
   "Sei|https://evm-rpc.sei-apis.com|1329"
+  # Stablecoin-native (requires tempo-foundry fork)
+  "Tempo|https://rpc.presto.tempo.xyz|4217"
 )
 
 TESTNET_CHAINS=(
@@ -78,6 +83,21 @@ if [[ -n "$SINGLE_CHAIN" ]]; then
   fi
   CHAINS=("${FILTERED[@]}")
 fi
+
+# --- Split chains into standard EVM and Tempo ---
+TEMPO_CHAIN_ID="4217"
+TEMPO_FEE_TOKEN="0x20c0000000000000000000000000000000000000"
+
+STANDARD_CHAINS=()
+TEMPO_CHAINS=()
+for chain in "${CHAINS[@]}"; do
+  IFS='|' read -r name rpc chain_id <<< "$chain"
+  if [[ "$chain_id" == "$TEMPO_CHAIN_ID" ]]; then
+    TEMPO_CHAINS+=("$chain")
+  else
+    STANDARD_CHAINS+=("$chain")
+  fi
+done
 
 # --- Pre-flight: test all RPCs in parallel ---
 echo "=== Pre-flight RPC Check ==="
@@ -134,68 +154,93 @@ TIMESTAMP=$(date -u +"%Y-%m-%d_%H-%M-%S")
 LOG_DIR="deployments/$TIMESTAMP"
 mkdir -p "$LOG_DIR"
 
-echo "=== Noah Multi-Chain Deployment ==="
-echo "Logs: $LOG_DIR/"
-echo ""
-
-PIDS=()
-ENTRIES=()
-
-for chain in "${CHAINS[@]}"; do
-  IFS='|' read -r name rpc chain_id <<< "$chain"
-
-  if [[ -z "$rpc" ]]; then
-    echo "[$name] Skipping — no RPC URL configured"
-    continue
-  fi
-
-  # Sanitize name for filename
-  safe_name=$(echo "$name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
-  logfile="$LOG_DIR/$safe_name.log"
-  ENTRIES+=("$name|$logfile|$chain_id")
-
-  echo "[$name] Starting deployment..."
-  forge script scripts/Deploy.s.sol:Deploy \
-    --rpc-url "$rpc" \
-    --broadcast \
-    $VERIFY_FLAG \
-    > "$logfile" 2>&1 &
-  PIDS+=($!)
-done
-
-echo ""
-echo "Waiting for all deployments to complete..."
-echo ""
-
 FAILED=0
 SUMMARY=""
-
 SUCCESSFUL_CHAINS=()
+ALL_ENTRIES=()
 
-for i in "${!PIDS[@]}"; do
-  IFS='|' read -r name logfile chain_id <<< "${ENTRIES[$i]}"
-  if wait "${PIDS[$i]}"; then
-    STATUS="SUCCESS"
-    echo "[$name] Deployed successfully"
-    SUCCESSFUL_CHAINS+=("$name|$chain_id")
-  else
-    STATUS="FAILED"
-    echo "[$name] FAILED"
-    FAILED=1
-  fi
+# --- Helper: deploy a batch of chains in parallel ---
+deploy_batch() {
+  local -n batch=$1
+  local extra_flags="${2:-}"
 
-  # Extract deployed address from log
-  ADDRESS=$(grep -oP 'Noah deployed at: \K0x[a-fA-F0-9]+' "$logfile" 2>/dev/null || echo "unknown")
+  local PIDS=()
+  local ENTRIES=()
 
-  SUMMARY+="$name | $STATUS | $ADDRESS"$'\n'
+  for chain in "${batch[@]}"; do
+    IFS='|' read -r name rpc chain_id <<< "$chain"
 
-  echo "--- $name output ---"
-  cat "$logfile"
-  echo "---"
+    if [[ -z "$rpc" ]]; then
+      echo "[$name] Skipping — no RPC URL configured"
+      continue
+    fi
+
+    local safe_name=$(echo "$name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
+    local logfile="$LOG_DIR/$safe_name.log"
+    ENTRIES+=("$name|$logfile|$chain_id")
+    ALL_ENTRIES+=("$name|$logfile|$chain_id")
+
+    echo "[$name] Starting deployment..."
+    forge script scripts/Deploy.s.sol:Deploy \
+      --rpc-url "$rpc" \
+      --broadcast \
+      $VERIFY_FLAG \
+      $extra_flags \
+      > "$logfile" 2>&1 &
+    PIDS+=($!)
+  done
+
   echo ""
-done
+  echo "Waiting for deployments to complete..."
+  echo ""
 
-# Write summary file
+  for i in "${!PIDS[@]}"; do
+    IFS='|' read -r name logfile chain_id <<< "${ENTRIES[$i]}"
+    if wait "${PIDS[$i]}"; then
+      STATUS="SUCCESS"
+      echo "[$name] Deployed successfully"
+      SUCCESSFUL_CHAINS+=("$name|$chain_id")
+    else
+      STATUS="FAILED"
+      echo "[$name] FAILED"
+      FAILED=1
+    fi
+
+    ADDRESS=$(grep -oP 'Noah deployed at: \K0x[a-fA-F0-9]+' "$logfile" 2>/dev/null || echo "unknown")
+    SUMMARY+="$name | $STATUS | $ADDRESS"$'\n'
+
+    echo "--- $name output ---"
+    cat "$logfile"
+    echo "---"
+    echo ""
+  done
+}
+
+# --- Phase 1: Deploy standard EVM chains ---
+if [[ ${#STANDARD_CHAINS[@]} -gt 0 ]]; then
+  echo "=== Phase 1: Standard EVM Chains (${#STANDARD_CHAINS[@]}) ==="
+  echo "Logs: $LOG_DIR/"
+  echo ""
+  deploy_batch STANDARD_CHAINS
+fi
+
+# --- Phase 2: Deploy Tempo (requires tempo-foundry fork) ---
+if [[ ${#TEMPO_CHAINS[@]} -gt 0 ]]; then
+  echo "=== Phase 2: Tempo (requires tempo-foundry) ==="
+  echo ""
+
+  echo "Switching to tempo-foundry..."
+  foundryup -n tempo 2>&1 | tail -1
+  echo ""
+
+  deploy_batch TEMPO_CHAINS "--tempo.fee-token $TEMPO_FEE_TOKEN"
+
+  echo "Restoring standard foundry..."
+  foundryup 2>&1 | tail -1
+  echo ""
+fi
+
+# --- Write summary ---
 SUMMARY_FILE="$LOG_DIR/summary.md"
 cat > "$SUMMARY_FILE" <<EOF
 # Deployment Summary
@@ -210,7 +255,7 @@ done)
 
 ## Logs
 
-$(for entry in "${ENTRIES[@]}"; do
+$(for entry in "${ALL_ENTRIES[@]}"; do
   IFS='|' read -r name logfile <<< "$entry"
   safe_name=$(basename "$logfile")
   echo "- [$name]($safe_name)"
@@ -241,7 +286,6 @@ for entry in "${SUCCESSFUL_CHAINS[@]}"; do
     echo "," >> "$DEPLOYS_FILE"
   fi
 
-  # Embed the entire broadcast JSON under the chain name key
   printf '  "%s": ' "$name" >> "$DEPLOYS_FILE"
   cat "$BROADCAST_FILE" >> "$DEPLOYS_FILE"
 done

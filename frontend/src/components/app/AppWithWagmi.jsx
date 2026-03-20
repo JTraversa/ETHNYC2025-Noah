@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { config } from '../../wagmiConfig';
+import { createConfig } from '../../wagmiConfig';
 import AppPage from './AppPage';
 import ConnectButton from './ConnectButton';
 
@@ -24,8 +24,24 @@ function ConnectButtonPortal() {
 }
 
 export default function AppWithWagmi() {
+  const [showTestnets, setShowTestnets] = useState(() => {
+    try { return localStorage.getItem('noah-show-testnets') === 'true'; }
+    catch { return false; }
+  });
+
+  const handleToggle = useCallback((e) => {
+    setShowTestnets(e.detail);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('noah-testnets-toggle', handleToggle);
+    return () => window.removeEventListener('noah-testnets-toggle', handleToggle);
+  }, [handleToggle]);
+
+  const wagmiConfig = useMemo(() => createConfig(showTestnets), [showTestnets]);
+
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={wagmiConfig} key={showTestnets ? 'testnets' : 'mainnets'}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
           <ConnectButtonPortal />
