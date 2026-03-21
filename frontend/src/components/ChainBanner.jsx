@@ -217,7 +217,7 @@ function ChainBanner({ twitter = 'traversajulian' }) {
       </div>
 
       <p className="text-xs md:text-sm text-slate-400 text-center mt-4">
-        Want your ecosystem added? Reach out to{' '}
+        Want support for your ecosystem? Reach out to{' '}
         <a
           href={`https://x.com/${twitter}`}
           target="_blank"
