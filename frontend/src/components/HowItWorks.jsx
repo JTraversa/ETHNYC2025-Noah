@@ -4,12 +4,12 @@ import Step from './Step';
 const setupSteps = [
   { num: '1', title: 'Configure Your Ark', desc: 'Identify which tokens you want protected and set your beneficiary'},
   { num: '2', title: 'Build your Ark', desc: 'Build your Ark on chain and approve future token transfer'},
-  { num: '3', title: 'Keep Using Your Wallet', desc: 'Ping your Ark to keep it active', footnote: '*Coming soon: bundled pings for automatic protection' },
+  { num: '3', title: 'Keep Using Your Wallet', desc: 'Ping your Ark to keep it active' },
 ];
 
 const protectionSteps = [
   { num: '1', title: 'Damage Detection', desc: 'Noah identifies damage through deadman switch activation' },
-  { num: '2', title: 'Token Liquidation', desc: '', footnote: '*Coming soon: Third parties liquidate to a desired token (e.g. USDC) through a dutch auction' },
+  { num: '2', title: 'Token Liquidation', desc: 'Third parties liquidate to a desired token (e.g. USDC) through a dutch auction' },
   { num: '3', title: 'Token Delivery', desc: 'Incentivized participants transfer your tokens to your beneficiary' },
 ];
 

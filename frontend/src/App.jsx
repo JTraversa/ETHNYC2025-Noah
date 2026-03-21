@@ -5,6 +5,7 @@ import Hero from './components/Hero';
 import Features from './components/Features';
 import HowItWorks from './components/HowItWorks';
 import Stats from './components/Stats';
+import ChainBanner from './components/ChainBanner';
 import Footer from './components/Footer';
 import AboutPage from './components/about/AboutPage';
 import BrandKitPage from './components/about/BrandKitPage';
@@ -33,6 +34,10 @@ function HomePage() {
         {/* <Features /> */}
         <HowItWorks />
         <Stats />
+      </div>
+
+      <div className="min-[1700px]:col-start-2 min-[1700px]:col-span-4">
+        <ChainBanner twitter="traversajulian" />
       </div>
     </main>
   );
