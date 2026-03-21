@@ -61,6 +61,7 @@ MAINNET_CHAINS=(
   # New chains
   "Plasma|https://rpc.plasma.to|9745|sourcify|"
   "Ink|https://ink.drpc.org|57073|blockscout|https://explorer.inkonchain.com/api"
+  "Katana|https://rpc.katana.network|747474|blockscout|https://explorer.katanarpc.com/api"
 )
 
 TESTNET_CHAINS=(

@@ -51,6 +51,7 @@ CHAINS=(
   "Tempo|4217|https://rpc.presto.tempo.xyz"
   "Plasma|9745|https://rpc.plasma.to"
   "Ink|57073|https://ink.drpc.org"
+  "Katana|747474|https://rpc.katana.network"
 )
 
 # buildArk(address,uint256,address[]) selector = 0x79000013

@@ -22,6 +22,7 @@ import {
   tempo,
   plasma,
   ink,
+  katana,
   sepolia,
   arbitrumSepolia,
 } from 'viem/chains';
@@ -36,6 +37,7 @@ import stableIcon from './assets/chains/stable.svg';
 import tempoIcon from './assets/chains/tempo.svg';
 import plasmaIcon from './assets/chains/plasma.jpg';
 import inkIcon from './assets/chains/ink.jpg';
+import katanaIcon from './assets/chains/katana.jpg';
 
 // --- Custom chains not in viem ---
 
@@ -78,6 +80,7 @@ const cronosFixed = { ...cronos, name: 'Cronos' };
 const tempoFixed = { ...tempo, name: 'Tempo', iconUrl: tempoIcon };
 const plasmaFixed = { ...plasma, iconUrl: plasmaIcon };
 const inkFixed = { ...ink, iconUrl: inkIcon };
+const katanaFixed = { ...katana, iconUrl: katanaIcon };
 
 // --- Chain groups ---
 
@@ -106,6 +109,7 @@ export const mainnetChains = [
   tempoFixed,
   plasmaFixed,
   inkFixed,
+  katanaFixed,
 ];
 
 export const testnetChains = [
