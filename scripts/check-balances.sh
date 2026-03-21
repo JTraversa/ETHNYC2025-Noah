@@ -53,6 +53,8 @@ CHAINS=(
   "Celo|https://forno.celo.org|CELO|0.5"
   "Sei|https://evm-rpc.sei-apis.com|SEI|0.1"
   "Tempo|https://rpc.presto.tempo.xyz|USD|0.1"
+  "Plasma|https://rpc.plasma.to|XPL|1"
+  "Ink|https://ink.drpc.org|ETH|0.001"
 )
 
 # Temp file for parallel results

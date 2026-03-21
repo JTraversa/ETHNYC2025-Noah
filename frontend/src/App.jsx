@@ -30,7 +30,7 @@ function HomePage() {
       </div>
 
       <div className="flex flex-col gap-4 min-[1700px]:gap-5 min-[1700px]:col-span-2">
-        <Features />
+        {/* <Features /> */}
         <HowItWorks />
         <Stats />
       </div>

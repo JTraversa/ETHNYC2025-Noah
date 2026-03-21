@@ -58,6 +58,9 @@ MAINNET_CHAINS=(
   "Sei|https://evm-rpc.sei-apis.com|1329|blockscout|https://seitrace.com/pacific-1/api"
   # Stablecoin-native (requires tempo-foundry fork)
   "Tempo|https://rpc.presto.tempo.xyz|4217|sourcify|"
+  # New chains
+  "Plasma|https://rpc.plasma.to|9745|sourcify|"
+  "Ink|https://ink.drpc.org|57073|blockscout|https://explorer.inkonchain.com/api"
 )
 
 TESTNET_CHAINS=(
