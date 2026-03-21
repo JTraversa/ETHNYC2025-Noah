@@ -94,6 +94,7 @@ export const contract = {
         { name: 'user', type: 'address indexed', desc: 'The address of the user who built the Ark.' },
         { name: 'beneficiary', type: 'address indexed', desc: 'The address designated to receive tokens.' },
         { name: 'deadline', type: 'uint256', desc: 'The initial deadline timestamp for the Ark.' },
+        { name: 'tokens', type: 'address[]', desc: 'The array of token addresses added to the Ark.' },
       ]
     },
     {

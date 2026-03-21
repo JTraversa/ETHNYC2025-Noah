@@ -29,7 +29,7 @@ function AboutPage() {
           your assets to your designated beneficiary — incentivized through MEV opportunities.
         </p>
         <p className="text-sm md:text-base text-slate-600 leading-relaxed">
-          No centralized custody. No trusted third parties. Just smart contracts protecting your crypto legacy.
+          No centralized custody. No trusted third parties.
         </p>
       </div>
 
@@ -60,7 +60,7 @@ function AboutPage() {
             </p>
             <div className="flex flex-wrap gap-2">
               <a
-                href="https://github.com/JTraversa/Noah"
+                href="https://github.com/JTraversa"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 rounded-lg transition-all"
@@ -102,7 +102,7 @@ function AboutPage() {
         <h3 className="text-base md:text-lg font-semibold text-slate-700 mb-4">Links</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <a
-            href="https://github.com/JTraversa/Noah"
+            href="https://github.com/JTraversa"
             target="_blank"
             rel="noopener noreferrer"
             className="flex flex-col items-center gap-2 p-4 bg-slate-50/50 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all group"
