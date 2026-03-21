@@ -74,15 +74,15 @@ for meta in "${CHAIN_META[@]}"; do
 
   if [[ ! -f "$BROADCAST_FILE" ]]; then
     echo "  Skipping $name (chain $chain_id) — no broadcast artifact"
-    ((SKIPPED++))
+    SKIPPED=$((SKIPPED+1))
     continue
   fi
 
   # Get blockNumber hex from first receipt, convert to decimal
-  BLOCK_HEX=$(grep -oP '"blockNumber"\s*:\s*"\K0x[a-fA-F0-9]+' "$BROADCAST_FILE" | head -1)
+  BLOCK_HEX=$(grep -o '"blockNumber"[[:space:]]*:[[:space:]]*"0x[a-fA-F0-9]*"' "$BROADCAST_FILE" | grep -o '0x[a-fA-F0-9]*' | awk 'NR==1')
   if [[ -z "$BLOCK_HEX" ]]; then
     echo "  Skipping $name — no blockNumber in broadcast"
-    ((SKIPPED++))
+    SKIPPED=$((SKIPPED+1))
     continue
   fi
   START_BLOCK=$(printf "%d" "$BLOCK_HEX")
@@ -93,18 +93,17 @@ for meta in "${CHAIN_META[@]}"; do
     echo "," >> "$OUTPUT_FILE"
   fi
 
-  # Write chain entry (no trailing newline on last field so comma lands right)
-  cat >> "$OUTPUT_FILE" <<ENTRY
-    {
-      "name": "$name",
-      "chain_id": $chain_id,
-      "rpc_url": "$rpc_url",
-      "noah_address": "$NOAH_ADDRESS",
-      "start_block": $START_BLOCK,
-      "enabled": true
-    }ENTRY
+  # Write chain entry
+  printf '    {\n' >> "$OUTPUT_FILE"
+  printf '      "name": "%s",\n' "$name" >> "$OUTPUT_FILE"
+  printf '      "chain_id": %d,\n' "$chain_id" >> "$OUTPUT_FILE"
+  printf '      "rpc_url": "%s",\n' "$rpc_url" >> "$OUTPUT_FILE"
+  printf '      "noah_address": "%s",\n' "$NOAH_ADDRESS" >> "$OUTPUT_FILE"
+  printf '      "start_block": %d,\n' "$START_BLOCK" >> "$OUTPUT_FILE"
+  printf '      "enabled": true\n' >> "$OUTPUT_FILE"
+  printf '    }' >> "$OUTPUT_FILE"
 
-  ((FOUND++))
+  FOUND=$((FOUND+1))
   echo "  $name (chain $chain_id) — start block $START_BLOCK"
 done
 
