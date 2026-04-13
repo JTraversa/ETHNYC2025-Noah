@@ -124,7 +124,7 @@ function App() {
   const isHome = location.pathname === '/';
 
   return (
-    <div className={`min-h-screen w-screen gradient-bg flex flex-col p-4 md:p-8 text-slate-700 ${isHome ? 'overflow-y-auto min-[1700px]:overflow-hidden min-[1700px]:h-screen' : 'overflow-y-auto'}`}>
+    <div className={`h-screen w-screen overflow-y-auto gradient-bg flex flex-col p-4 md:p-8 text-slate-700 ${isHome ? 'min-[1700px]:overflow-hidden' : ''}`}>
       {/* Floating orbs for depth */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="orb-1 absolute top-20 left-20 w-40 h-40 md:w-72 md:h-72 bg-indigo-400/60 rounded-full blur-3xl" />
