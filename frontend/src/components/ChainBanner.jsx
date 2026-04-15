@@ -101,7 +101,7 @@ function ChainBanner({ twitter = 'traversajulian' }) {
       </h3>
 
       <div
-        className="marquee-track relative overflow-hidden"
+        className="marquee-track relative overflow-x-hidden"
         style={{
           maskImage: 'linear-gradient(to right, transparent, black 48px, black calc(100% - 48px), transparent)',
           WebkitMaskImage: 'linear-gradient(to right, transparent, black 48px, black calc(100% - 48px), transparent)',
