@@ -4,11 +4,11 @@ import { Link } from 'react-router-dom';
 function Hero() {
   return (
     <div className="flex flex-col justify-center text-center min-[1700px]:text-left">
-      <h2 className="text-4xl md:text-5xl min-[1700px]:text-6xl font-bold leading-tight mb-4 md:mb-6">
+      <h2 className="text-4xl md:text-5xl lg:text-4xl min-[1700px]:text-6xl font-bold leading-tight mb-4 md:mb-6 lg:mb-4">
         Protect Your<br />
         <span className="text-indigo-600">Crypto Legacy</span>
       </h2>
-      <p className="text-lg md:text-xl text-slate-500 mb-6 md:mb-8 max-w-lg mx-auto min-[1700px]:mx-0 leading-relaxed">
+      <p className="text-lg md:text-xl lg:text-lg text-slate-500 mb-6 md:mb-8 lg:mb-6 max-w-lg mx-auto min-[1700px]:mx-0 leading-relaxed">
         A friendly dead man's switch ensuring your digital assets reach loved ones or backup wallets in the event of a loss of life or hardware damage. Simple, secure, automatic.
       </p>
       <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center min-[1700px]:justify-start">

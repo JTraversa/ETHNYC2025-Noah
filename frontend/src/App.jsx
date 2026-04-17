@@ -25,18 +25,17 @@ const AppWithWagmi = lazy(() => import('./components/app/AppWithWagmi'));
 
 function HomePage() {
   return (
-    <main className="relative z-10 flex-1 flex flex-col gap-8 py-8 min-[1700px]:grid min-[1700px]:grid-cols-6 min-[1700px]:items-center">
+    <main className="relative z-10 flex flex-col gap-8 py-8 lg:grid lg:grid-cols-2 lg:flex-1 lg:items-center lg:py-1 lg:gap-y-2 min-[1700px]:grid-cols-6 min-[1700px]:py-4 min-[1700px]:gap-y-4">
       <div className="min-[1700px]:col-start-2 min-[1700px]:col-span-2">
         <Hero />
       </div>
 
-      <div className="flex flex-col gap-4 min-[1700px]:gap-5 min-[1700px]:col-span-2">
-        {/* <Features /> */}
+      <div className="flex flex-col gap-4 lg:gap-3 min-[1700px]:gap-3 min-[1700px]:col-span-2">
         <HowItWorks />
         <Stats />
       </div>
 
-      <div className="min-[1700px]:col-start-2 min-[1700px]:col-span-4">
+      <div className="lg:col-span-2 min-[1700px]:col-start-2 min-[1700px]:col-span-4">
         <ChainBanner twitter="traversajulian" />
       </div>
     </main>
@@ -124,7 +123,7 @@ function App() {
   const isHome = location.pathname === '/';
 
   return (
-    <div className={`h-screen w-screen overflow-y-auto gradient-bg flex flex-col p-4 md:p-8 text-slate-700 ${isHome ? 'min-[1700px]:overflow-hidden' : ''}`}>
+    <div className={`h-screen w-screen overflow-y-auto gradient-bg flex flex-col p-4 md:p-8 md:pb-20 lg:pb-8 text-slate-700 ${isHome ? 'lg:overflow-hidden' : ''}`}>
       {/* Floating orbs for depth */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="orb-1 absolute top-20 left-20 w-40 h-40 md:w-72 md:h-72 bg-indigo-400/60 rounded-full blur-3xl" />

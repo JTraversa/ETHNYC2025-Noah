@@ -15,8 +15,8 @@ const protectionSteps = [
 
 function HowItWorks() {
   return (
-    <div className="glass rounded-2xl p-4 md:p-6 hidden min-[1700px]:block">
-      <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 text-slate-700">How It Works</h3>
+    <div className="glass rounded-2xl p-4 md:p-6 lg:p-3 min-[1700px]:p-4 hidden lg:block">
+      <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 lg:mb-2 min-[1700px]:mb-2 text-slate-700">How It Works</h3>
 
       {/* Setup Flow */}
       <div className="flex items-stretch gap-2 md:gap-3">
@@ -33,7 +33,7 @@ function HowItWorks() {
       </div>
 
       {/* Connecting Arrow from "Keep Using" to "Damage Detected" */}
-      <div className="relative my-4 md:my-6 h-16 md:h-20">
+      <div className="relative my-4 md:my-6 lg:my-2 min-[1700px]:my-3 h-16 md:h-20 lg:h-10 min-[1700px]:h-14">
         {/* SVG curved arrow */}
         <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
           <defs>

@@ -17,8 +17,8 @@ function Step({ num, title, desc, footnote, variant = 'default' }) {
   };
 
   return (
-    <div className={`glass-dark rounded-xl p-2 md:p-4 flex-1 text-center ${isProtection ? 'border border-red-200/50' : ''}`}>
-      <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full text-white text-xs md:text-sm font-bold flex items-center justify-center mx-auto mb-1 md:mb-2 ${isProtection ? 'bg-red-500' : 'bg-indigo-500'}`}>
+    <div className={`glass-dark rounded-xl p-2 md:p-4 lg:p-2 min-[1700px]:p-3 flex-1 text-center ${isProtection ? 'border border-red-200/50' : ''}`}>
+      <div className={`w-6 h-6 md:w-8 md:h-8 lg:w-6 lg:h-6 min-[1700px]:w-6 min-[1700px]:h-6 rounded-full text-white text-xs md:text-sm lg:text-xs font-bold flex items-center justify-center mx-auto mb-1 md:mb-2 lg:mb-1 min-[1700px]:mb-1 ${isProtection ? 'bg-red-500' : 'bg-indigo-500'}`}>
         {num}
       </div>
       <div className="font-semibold text-xs md:text-sm text-slate-700 mb-1">{title}</div>

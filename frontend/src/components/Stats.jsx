@@ -18,7 +18,7 @@ function Stats() {
   const protectedValue = loading ? '...' : formatUSD(balance);
 
   return (
-    <div className="glass rounded-2xl p-3 md:p-5 grid grid-cols-3 gap-4">
+    <div className="glass rounded-2xl p-3 md:p-5 lg:p-3 grid grid-cols-3 gap-4">
       <Stat value={protectedValue} label="Protected" animated />
       <Stat value={String(stats.total_arks + 10)} label="Arks" />
       <Stat value={String(stats.unique_users + 7)} label="Users" />

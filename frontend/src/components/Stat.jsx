@@ -4,7 +4,7 @@ import SlotNumber from './SlotNumber';
 function Stat({ value, label, animated = false }) {
   return (
     <div className="text-center">
-      <div className="text-lg md:text-2xl font-bold text-indigo-600">
+      <div className="text-lg md:text-2xl lg:text-xl font-bold text-indigo-600">
         {animated ? (
           <SlotNumber value={value} />
         ) : (

@@ -58,14 +58,14 @@ const chains = [
 const GAP = 32;
 
 const ChainItem = ({ name, icon }) => (
-  <div className="flex flex-col items-center flex-shrink-0 w-[36px] md:w-[44px]">
+  <div className="flex flex-col items-center flex-shrink-0 w-[36px] md:w-[44px] lg:w-[30px] min-[1700px]:w-[44px]">
     <img
       src={icon}
       alt={name}
-      className="w-[36px] h-[36px] md:w-[44px] md:h-[44px] rounded-[10px] object-cover"
+      className="w-[36px] h-[36px] md:w-[44px] md:h-[44px] lg:w-[30px] lg:h-[30px] min-[1700px]:w-[44px] min-[1700px]:h-[44px] rounded-[10px] object-cover"
       loading="eager"
     />
-    <span className="text-[10px] md:text-[11px] font-medium text-slate-500 mt-1.5 md:mt-2 whitespace-nowrap">
+    <span className="text-[10px] md:text-[11px] lg:text-[9px] min-[1700px]:text-[11px] font-medium text-slate-500 mt-1.5 md:mt-2 lg:mt-1 min-[1700px]:mt-2 whitespace-nowrap">
       {name}
     </span>
   </div>
@@ -83,7 +83,7 @@ function ChainBanner({ twitter = 'traversajulian' }) {
   }, []);
 
   return (
-    <div className="rounded-2xl p-4 md:p-6 overflow-hidden bg-white/70 border border-white/80 shadow-[0_8px_32px_rgba(99,102,241,0.1)]">
+    <div className="rounded-2xl p-4 md:p-6 lg:p-3 min-[1700px]:p-4 overflow-hidden bg-white/70 border border-white/80 shadow-[0_8px_32px_rgba(99,102,241,0.1)]">
       {offset > 0 && (
         <style>{`
           @keyframes marquee {
@@ -96,7 +96,7 @@ function ChainBanner({ twitter = 'traversajulian' }) {
         `}</style>
       )}
 
-      <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 text-slate-700 text-center">
+      <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 lg:mb-2 lg:text-sm min-[1700px]:mb-2 min-[1700px]:text-lg text-slate-700 text-center">
         Supported Ecosystems
       </h3>
 
@@ -130,7 +130,7 @@ function ChainBanner({ twitter = 'traversajulian' }) {
         </div>
       </div>
 
-      <p className="text-xs md:text-sm text-slate-400 text-center mt-4">
+      <p className="text-xs md:text-sm text-slate-400 text-center mt-4 lg:hidden min-[1700px]:block min-[1700px]:mt-2">
         Want support for your ecosystem? Reach out to{' '}
         <a
           href={`https://x.com/${twitter}`}
