@@ -19,6 +19,9 @@
 # production
 /build
 
+# audit
+/.audit
+
 # misc
 .DS_Store
 .env.local
