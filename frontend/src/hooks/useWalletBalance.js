@@ -38,11 +38,16 @@ async function fetchNetWorth() {
 async function fetchDefiPositions() {
   let totalDefiValue = 0;
 
-  // Fetch DeFi summary for each chain
+  // Fetch DeFi positions for each chain.
+  // NOTE: we deliberately do not use /defi/summary's total_usd_value - it sums both
+  // the receipt token (aArbweETH, variableDebtArbWETH, ...) and its underlying, and
+  // receipt tokens are frequently mispriced (aArbweETH quoted at ~$65k vs weETH ~$2k),
+  // which inflated the "Protected" stat to ~$111M. Instead we sum only the underlying
+  // legs (token_type 'supplied' / 'borrowed') and subtract debt.
   for (const chain of CHAINS) {
     try {
       const response = await fetch(
-        `https://deep-index.moralis.io/api/v2.2/wallets/${WALLET_ADDRESS}/defi/summary?chain=${chain}`,
+        `https://deep-index.moralis.io/api/v2.2/wallets/${WALLET_ADDRESS}/defi/positions?chain=${chain}`,
         {
           headers: {
             'X-API-Key': MORALIS_API_KEY,
@@ -52,12 +57,26 @@ async function fetchDefiPositions() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.total_usd_value) {
-          totalDefiValue += parseFloat(data.total_usd_value);
+        const entries = Array.isArray(data) ? data : [];
+
+        for (const entry of entries) {
+          const tokens = entry.position?.tokens || [];
+          const isDebt = entry.position?.position_details?.is_debt === true;
+
+          for (const token of tokens) {
+            // Skip protocol receipt tokens - they duplicate the underlying leg
+            if (token.token_type === 'defi-token') continue;
+
+            const value = parseFloat(token.usd_value);
+            if (!Number.isFinite(value)) continue;
+
+            const isBorrowed = isDebt || token.token_type === 'borrowed';
+            totalDefiValue += isBorrowed ? -Math.abs(value) : Math.abs(value);
+          }
         }
       }
     } catch (err) {
-      console.warn(`Failed to fetch DeFi summary for ${chain}:`, err);
+      console.warn(`Failed to fetch DeFi positions for ${chain}:`, err);
     }
   }
 
